@@ -1,0 +1,288 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+% \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading nips_2016
+%
+% to avoid loading the natbib package, add option nonatbib:
+% \usepackage[nonatbib]{nips_2016}
+
+\usepackage[final]{nips_2016_customized}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+% \usepackage[final]{nips_2016}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+\usepackage{minted}
+
+\newcommand{\NAME}{NAME\_TBD}
+\newcommand{\TODO}[1]{}
+\usepackage{color}
+\renewcommand{\TODO}[1]{{\color{red} TODO: {#1}}}
+
+\title{\NAME - A Domain Specific Language for Implementing Finite State Machines in Hardware}
+
+% The \author macro works with any number of authors. There are two
+% commands used to separate the names and addresses of multiple
+% authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to
+% break the lines. Using \AND forces a line break at that point. So,
+% if LaTeX puts 3 of 4 authors names on the first line, and the last
+% on the second line, try using \AND instead of \And before the third
+% author name.
+
+\author{
+  Leonard Truong\\%\thanks{http://truong.io} \\
+  \texttt{lenny@stanford.edu} \\
+  %% examples of more authors
+  \And
+  James Hegarty \\
+  \texttt{jhegarty@stanford.edu} \\
+  \AND
+  Ross Daly \\
+  \texttt{ross.daly@stanford.edu} \\
+  \And
+  Pat Hanrahan \\
+  \texttt{hanrahan@cs.stanford.edu} \\
+  %% \AND
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+}
+
+\begin{document}
+% \nipsfinalcopy is no longer used
+
+\maketitle
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction}
+We propose a domain specific language for implementing finite state
+machines in hardware. The language is embedded in C to provide seamless
+interoperability with existing codebases in any language \TODO{Well any
+language with a good FFI could make this argument, probably need to
+reword this to avoid religious arguments}. The user is provided with a
+set of operators, types, and built-in functions that are described in
+detail in Section~\ref{sec:language_specification}. The key language
+extension is the introduction of the \texttt{yield} keyword. This
+allows users to implement finite state machines using the coroutine programming
+model (described in detail in Section~\ref{sec:fsms_as_coroutines}). The
+compiler, described in Section~\ref{sec:compiler}, analyzes the program to
+construct an abstract representation of the state machine, which is then
+lowered into CoreIR.
+
+A side-goal of this project is to construct a lightweight toolkit for
+embedding DSLs in C. While embedding a language in C is likely to
+introduce some headaches for the toolkit (i.e. we can't just hook into
+the built-in parser like in Lua or Python), we see this as a
+future-proof host language choice. \TODO{That is, C isn't going
+anywhere, so at least the host language won't become obsolete.}
+
+\subsection{Motivation}
+A hardware implementation of a finite state machine would traditionally
+be written in a hardware description language (HDL) such as Verilog. In
+practice, this partially reduces to a giant \texttt{case} statement
+that enumerates all the possible state transitions. This approach
+suffers from verbosity and is prone to errors. \TODO{Probably good to have James H. (and Ross?) to write something here since they've actually dealt with this}
+
+An alternative approach would be to write the state machine in C and
+use a high-level synthesis tool (HLS) to automatically construct a
+hardware implementation. \TODO{Argument here is basically general
+purpose versus DSL compilers, that is, HLS=general purpose compiler} 
+Being able to describe the program in a higher-level, imperative
+language is convenient for the programmer, but makes the job difficult
+for the compiler. For example, typical HLS systems decouple the
+behavior of the program from clock-level timing, which can make it
+difficult to understand the semantics of how operations are executed in
+hardware (sequential or parallel). This creates issues in designing and debugging implementations.
+
+\subsection{Background}
+\subsubsection{Automatons and Finite State Machines}
+\emph{Automatons} are abstract models of machines that perform
+computations on an input by moving through a series of states or
+configurations. A finite state machine (FSM) is an automaton in which
+the state set contains only a finite number of
+elements~\cite{basics-of-automata-theory}.
+
+Two major types of finite state machines are the \emph{Mealy} machine
+and \emph{Moore} machine. A Mealy machine determines its output as a function of its current state and input, while a Moore machine's output is based purely on the current state.
+\subsubsection{FSMs as Co-routines}
+\label{sec:fsms_as_coroutines}
+\TODO{Formally define co-routines}
+By definition, co-routines preserve the state of the function between calls,
+making them a viable programming model for finite state machines.
+
+\subsubsection{Hardware Description Languages}
+\subsubsection{High-level Synthesis}
+
+\section{Related Work}
+
+\subsection{greenery}
+\emph{greenery}~\cite{greenery-github} is a set of tools for parsing
+and manipulating regular expressions (greenery.lego), for producing
+finite-state machines (greenery.fsm), and for freely converting between
+the two.  The main feature of greenery is the ability to convert two
+regexes into finite state machines, computing the intersection of the
+two FSMs as a third FSM, and converting the third FSM back to a regex.
+\TODO{This library might be useful if we can find patterns where the intersection of FSMs would allow us to reuse hardware, seems like a stretch goal though}
+
+\section{Language Specification}
+\label{sec:language_specification}
+The language was designed to closely match the syntax of the host language (C)
+to reduce the cost of learning and the burden of context switching between
+languages.  Our only extension of the C-language is the yield keyword to
+indicate the end of a clock cycle. We modify the semantics of certain C
+operators to better suit hardware construction.  Finally, we restrict the use
+of valid C syntax that is not necessary for the functionality of our language. 
+
+\subsection{Grammar}
+\begin{verbatim}
+<stmt>   ::= <expr>  # expr
+          |  <sym> <sym>  # variable declaration
+          |  <sym> = <expr>  # assignment
+          |  <sym> <sym> = <expr>  # declaration with assignment
+          |  <sym> <sym>(<sym>, ..., <sym>) { <stmt>* } # function declaration
+          |  if (<expr>) { <stmt>* }  # if then
+          |  if (<expr>) { <stmt>* } else { <stmt>* }  # if then else
+          |  while (<expr>) { <stmt>* }  # while loop
+          |  for (<expr>; <expr>; <expr>) { <stmt>*}  # for loop
+<expr>   ::= null
+          |  <number>
+          |  <sym>
+          |  (<expr>)
+          |  <expresson> <binop> <expr>
+          |  <unop> <expr>
+          |  <sym>(<expr>, ..., <expr>)  # function call
+          |  yield
+          |  return <expr>
+          # TODO: Do we need something like reg[2:0]
+<sym>    ::= /[a-zA-Z_][a-zA-Z_0-9]*/
+<number> ::= /[0-9]+/
+<binop>  ::= !, &, |, ~&, ~|, ^, ~^, +, -, *, /, %, <<, >>, >, >=, <,
+          |  <=, ==, !=, &&, ||
+<unop>   ::= ~, +, -, (<sym>)
+\end{verbatim}
+\subsection{Types}
+
+\subsubsection{input}
+The \texttt{input} type is used to describe inputs to the state machine.  The
+value of an input variable is read-only.
+\subsubsection{output}
+The \texttt{output} type is used to describe outputs to the state machine. The
+must be set during the first clock cycle (cannot be undefined) \TODO{Should we
+instead initialize it to some value?}. An output type must only be written once
+during a single clock cycle.
+\subsubsection{reg}
+The \texttt{reg} type is used to describe a register for implementing
+sequential logic. An instance of \texttt{reg} will retain it's value till the
+next clock cycle.  An instance of \texttt{reg} can be read from freely, but
+only written to once during a clock cycle.
+\subsubsection{wire}
+The \texttt{wire} type is used for implementing combinational logic. They can
+be read freely but only assigned once per clock cycle. They must be driven by a
+continuous assign statement or from a port of a module.
+
+\subsection{yield}
+
+\subsection{Example Programs}
+\subsubsection{Downsample module}
+\begin{minted}{c}
+void downsample(input A, output B, output valid) {
+  for (int y = 0; y < SIZE_Y; ++y) {
+    for (int x = 0; x < SIZE_X; ++x) {
+      valid = (x % 2);
+      B = A;
+      yield;
+    }
+  }
+}
+// TODO: Need to decide on how this would be wrapped
+// example:
+//  setup A, B, valid
+//  while (true) {
+//    downsample(A, B, valid)
+//  }
+\end{minted}
+
+\subsubsection{VGA Controller}
+\begin{minted}{c}
+bool column_in_display(x) {
+  return x >= VGA_X_MIN && x < VGA_X_MAX;
+}
+bool row_in_display(y) {
+  return y >= VGA_Y_MIN && y < VGA_Y_MAX;
+}
+void vga_controller(input A, output B, output valid) {
+  for (int y = 0; y < size_y; y++) {
+    for (int x = 0; x < size_x; x++) {
+      valid = column_in_display(x) && row_in_display(y);
+      B = A;
+      yield;
+    }
+  }
+}
+\end{minted}
+
+
+\section{Language Internals (Compiler)}
+\label{sec:compiler}
+
+\subsection{Parser}
+Option 1: Use a tool like Bison to generate a parser from the above grammar. 
+
+Option 2: Create something better than Bison (lightweight, intuitive, simple, verifiable?)
+
+\subsection{Internal Representation of State Machines}
+The next phase begins by converting the programs AST into a control flow graph,
+giving us all the possible paths that the program can take during execution.
+We can then observe all the paths between yield statements as possible state
+transitions during a clock-cycle. With these paths we can also perform type
+checking (i.e. ensure that the outputs are only written once in a clock cycle).
+
+\subsection{Lowering to CoreIR}
+
+\section{Milestones}
+\begin{itemize}
+	\item Proposal
+	\item Parser
+	\item Control flow graph analysis \TODO{Is this what you call constructing the CFG?}
+	\item Infer transition set (paths between yields)
+	\item Infer FSM state (function state)
+	\item Implement a way to verify the internal representation of an FSM (programmatic interface or visual/graphical representation to check manually)
+	\item Type check paths between yields
+	\item Lower transitions and FSM state to CoreIR logic
+\end{itemize}
+
+\section{Conclusion}
+
+\subsubsection*{Acknowledgments}
+
+\section*{References}
+
+\small
+\bibliographystyle{abbrv}
+\bibliography{proposal}
+
+\end{document}
