@@ -1,6 +1,6 @@
-from coroutine import coroutine
+from dsl import fsm
 
-@coroutine
+@fsm
 def downsample(size_x, size_y):
     _output = None
     valid   = False
