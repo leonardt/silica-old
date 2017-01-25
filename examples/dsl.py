@@ -37,14 +37,9 @@ class DoubleInstantiationException(FSMDSLException):
 
 
 class IOVar:
-    __unique_var_id = 0
-    def __init__(self, typ):
+    def __init__(self, name, typ):
+        self.name = name
         self.typ = typ
-        self.unique_id = "__var{}".format(IOVar.__unique_var_id)
-        IOVar.__unique_var_id += 1
-
-    def __repr__(self):
-        return "IOVar(typ={},unique_id={})".format(self.typ, self.unique_id)
 
 class IOCollector(ast.NodeVisitor):
     def __init__(self):
@@ -66,14 +61,52 @@ def get_io_vars(tree):
     collector.visit(tree)
     return collector.io_vars
 
+class IOVarRewriter(ast.NodeTransformer):
+    def __init__(self, io_vars):
+        super()
+        self.symbol_table = {}
+        for var in io_vars:
+            self.symbol_table[var.name] = var.typ
+
+    def visit_Assign(self, node):
+        node.value = self.visit(node.value)
+        if len(node.targets) > 1:
+            raise NotImplementedError("a, b, c = ... not implemented yet")
+        target = node.targets[0]
+        if is_name(target) and target.id in self.symbol_table:
+            typ = self.symbol_table[target.id]
+            if typ == 'Input':
+                # TODO: Linenumber?
+                raise TypeError("Attempting to write to Input variable {}".format(target.id))
+            elif typ == 'Output':
+                target = ast.Attribute(target, "value", ast.Store())
+        node.targets[0] = target
+        return node
+
+    def visit_Name(self, node):
+        if node.id in self.symbol_table:
+            typ = self.symbol_table[node.id]
+            if typ == 'Input':
+                return ast.Attribute(node, "value", ast.Load())
+            elif typ == 'Output':
+                # TODO: Linenumber?
+                raise TypeError("Attempting to read from an Output variable {}".format(target.id))
+
+
+def rewrite_io_vars(tree, io_vars):
+    return IOVarRewriter(io_vars).visit(tree)
+
 def fsm(f):
     tree = get_ast(f)
-    io_vars = get_io_vars(tree)
+    io_vars = []
+    for arg in tree.body[0].args.args:
+        if arg.annotation.id in {"Input", "Output"}:
+            io_vars.append(IOVar(arg.arg, arg.annotation.id))
+    tee = rewrite_io_vars(tree, io_vars)
     def wrapped(*args, **kwargs):
         cor = f(*args, **kwargs)
         cor.next()
         return cor
-    wrapped.io = io_vars
     return wrapped
 
 
@@ -89,9 +122,6 @@ class Module:
     def connect(self, source, sink):
         assert isinstance(source, IOVar) and isinstance(sink, IOVar)
         self.connections.append((source.unique_id, sink.unique_id))
-
-    def set(self, node, value):
-
 
 class IO:
     def __init__(self, width=1):
