@@ -1,20 +1,26 @@
-from dsl import fsm, Input, Output, Module
+from dsl import FSM, Input, Output
 
-@fsm
+@FSM
 def uart_transmitter(data : Input, signal : Input, tx : Output):
     while True:
         yield
         if signal:
             tx = 0  # start bit
             yield
-            bit = 0x80
-            while (bit):
-                tx = data & bit  # send next bit
+            for i in range(0, 8):
+                tx = data & 1  # send next bit
                 yield
-                bit >>= 1
+                data >>= 1
             tx = 1  # end bit
             yield
 
-module = Module()
-module.init_fsm(uart_transmitter)
+data = 0xBE
+uart_transmitter.IO.data.value   = data
+uart_transmitter.IO.signal.value = 1
 
+print("Expected : 0{}1".format("{0:b}".format(data)[::-1]))  # reversed because data is sent LSB first
+print("Actual   : ", end="")
+for i in range(0, 10):
+    next(uart_transmitter)
+    print(uart_transmitter.IO.tx.value, end="")
+print()
