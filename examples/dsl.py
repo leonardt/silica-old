@@ -17,6 +17,9 @@ def is_call(node):
 def is_name(node):
     return isinstance(node, ast.Name)
 
+def is_subscript(node):
+    return isinstance(node, ast.Subscript)
+
 def get_call_name(node):
     if is_name(node.func):
         return node.func.id
@@ -24,9 +27,10 @@ def get_call_name(node):
     raise NotImplementedError(type(node.value.func))
 
 class IOVar:
-    def __init__(self, name, typ):
+    def __init__(self, name, typ, width):
         self.name = name
         self.typ = typ
+        self.width = width
 
 def get_io_vars(tree):
     collector = IOCollector()
@@ -78,8 +82,14 @@ class FSM:
         tree = get_ast(f)
         io_vars = []
         for arg in tree.args.args:
-            if arg.annotation.id in {"Input", "Output"}:
-                io_vars.append(IOVar(arg.arg, arg.annotation.id))
+            annotation = arg.annotation
+            width = 1  # default width
+            if is_subscript(annotation):
+                assert isinstance(annotation.slice.value, ast.Num)
+                width = annotation.slice.value.n
+                annotation = annotation.value  # Input[1] -> Input
+            assert annotation.id in {"Input", "Output"}, annotation.id
+            io_vars.append(IOVar(arg.arg, annotation.id, width))
         tree = rewrite_io_vars(tree, io_vars)
         tree.decorator_list = []
         src = astor.to_source(tree)
@@ -88,7 +98,7 @@ class FSM:
         f = eval(tree.name)
         args = []
         for var in io_vars:
-            args.append(eval("{}()".format(var.typ)))
+            args.append(eval("_{}({})".format(var.typ, var.width)))
         self.cor = f(*args)
         next(self.cor)
         self.IO = lambda x: None  # Hack, allows us to dynamically add attributes
@@ -99,12 +109,36 @@ class FSM:
         next(self.cor)
 
 
+class _IO:
+    def __init__(self, width=1):
+        self._value = 0
+        self.width = width
+
+    @property
+    def value(self):
+        if self.width > 1:
+            val = []
+            _val = self._value
+            for i in range(0, self.width):
+                val.insert(0, _val & 1)
+                _val >>= 1
+            return val
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+
+
+class _Output(_IO):
+    pass
+
+class _Input(_IO):
+    pass
+
 class IO:
-    def __init__(self):
-        self.value = 0
+    def __getitem__(self, index):
+        pass
 
-class Output(IO):
-    pass
-
-class Input(IO):
-    pass
+Output = IO()
+Input = IO()
