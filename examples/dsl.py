@@ -1,3 +1,4 @@
+from controlflowgraph import ControlFlowGraph, PrintCFG
 import ast
 import astor
 import inspect
@@ -78,32 +79,39 @@ def rewrite_io_vars(tree, io_vars):
     return IOVarRewriter(io_vars).visit(tree)
 
 class FSM:
+    mode = "magma"
     def __init__(self, f):
         tree = get_ast(f)
-        io_vars = []
-        for arg in tree.args.args:
-            annotation = arg.annotation
-            width = 1  # default width
-            if is_subscript(annotation):
-                assert isinstance(annotation.slice.value, ast.Num)
-                width = annotation.slice.value.n
-                annotation = annotation.value  # Input[1] -> Input
-            assert annotation.id in {"Input", "Output"}, annotation.id
-            io_vars.append(IOVar(arg.arg, annotation.id, width))
-        tree = rewrite_io_vars(tree, io_vars)
-        tree.decorator_list = []
-        src = astor.to_source(tree)
-        print(src)
-        exec(src)
-        f = eval(tree.name)
-        args = []
-        for var in io_vars:
-            args.append(eval("_{}({})".format(var.typ, var.width)))
-        self.cor = f(*args)
-        next(self.cor)
-        self.IO = lambda x: None  # Hack, allows us to dynamically add attributes
-        for var, arg in zip(io_vars, args):
-            setattr(self.IO, var.name, arg)
+        if FSM.mode == "python":
+            io_vars = []
+            for arg in tree.args.args:
+                annotation = arg.annotation
+                width = 1  # default width
+                if is_subscript(annotation):
+                    assert isinstance(annotation.slice.value, ast.Num)
+                    width = annotation.slice.value.n
+                    annotation = annotation.value  # Input[1] -> Input
+                assert annotation.id in {"Input", "Output"}, annotation.id
+                io_vars.append(IOVar(arg.arg, annotation.id, width))
+            tree = rewrite_io_vars(tree, io_vars)
+            tree.decorator_list = []
+            src = astor.to_source(tree)
+            # print(src)
+            exec(src)
+            f = eval(tree.name)
+            args = []
+            for var in io_vars:
+                args.append(eval("_{}({})".format(var.typ, var.width)))
+            self.cor = f(*args)
+            next(self.cor)
+            self.IO = lambda x: None  # Hack, allows us to dynamically add attributes
+            for var, arg in zip(io_vars, args):
+                setattr(self.IO, var.name, arg)
+        else:
+            cfg = ControlFlowGraph()
+            s_ast = cfg.parse_ast(tree)
+            PrintCFG(s_ast)
+
 
     def __next__(self):
         next(self.cor)
