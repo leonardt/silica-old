@@ -1,1 +1,5 @@
 *.pyc
+*.gv
+*.pdf
+!writeup/writeup.pdf
+*.dot
