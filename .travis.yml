@@ -7,6 +7,8 @@ python:
     - "3.6"
     - "nightly"
 
-install: "pip install -r requirements.txt"
+install: 
+    "pip install -r requirements.txt"
+    "pip install pytest"
 
 script: pytest
