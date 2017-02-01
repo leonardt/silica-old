@@ -2,7 +2,10 @@
 
 Requires Python 3
 
-# Setup
+# DevelopmentSetup
 ```
 pip install -r requirements.txt
+pip install pytest
+export PYTHONPATH=`pwd`:$PYTHONPATH
+pytest  # Check tests pass
 ```
