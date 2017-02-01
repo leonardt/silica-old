@@ -1,14 +1,14 @@
 from dsl import FSM, Input, Output
 
-@FSM
-def signal(valid : Input, done : Input, run : Output):
-    while True:
-        yield
-        if valid:
-            run = 1
-            while not done:
-                yield
-            run = 0
+# @FSM
+# def signal(valid : Input, done : Input, run : Output):
+#     while True:
+#         yield
+#         if valid:
+#             run = 1
+#             while not done:
+#                 yield
+#             run = 0
 
 # signal.IO.valid.value = 1
 # signal.IO.done.value = 0
@@ -20,16 +20,16 @@ def signal(valid : Input, done : Input, run : Output):
 # next(signal)
 # print("Run should be low: {}".format(signal.IO.run.value == 0))
 
-# @FSM
-# def counter(run : Input, done : Output):
-#     while True:
-#         yield
-#         if run:
-#             for i in range(0, 15):
-#                 yield
-#             done = 1
-#             yield
-#             done = 0
+@FSM
+def counter(run : Input, done : Output):
+    while True:
+        yield
+        if run:
+            for i in range(0, 15):
+                yield
+            done = 1
+            yield
+            done = 0
 
 # counter.IO.run.value = 1
 # next(counter)
