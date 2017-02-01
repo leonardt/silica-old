@@ -1,6 +1,5 @@
 import ast
 import astor
-from graphviz import Digraph
 
 class BasicBlock:
     def __init__(self):
@@ -95,6 +94,7 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.consolidate_empty_blocks()
 
     def render(self):
+        from graphviz import Digraph
         dot = Digraph(name="top")
         for block in self.blocks:
             label = ""
