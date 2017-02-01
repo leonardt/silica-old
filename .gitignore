@@ -3,3 +3,4 @@
 *.pdf
 !writeup/writeup.pdf
 *.dot
+fsm_dsl.egg-info

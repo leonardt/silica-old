@@ -1,4 +1,4 @@
-from dsl import FSM, Input, Output
+from fsm_dsl import FSM, Input, Output
 
 # @FSM
 # def signal(valid : Input, done : Input, run : Output):

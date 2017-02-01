@@ -1,4 +1,4 @@
-from cfg import ControlFlowGraph
+from fsm_dsl.cfg import ControlFlowGraph
 import ast
 import astor
 import inspect
