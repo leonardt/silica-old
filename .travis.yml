@@ -1,8 +1,5 @@
 language: python
 python:
-    - "3.2"
-    - "3.3"
-    - "3.4"
     - "3.5"
     - "3.6"
     - "nightly"
@@ -12,4 +9,4 @@ install:
 
 script: 
     - export PYTHONPATH=`pwd`
-    - if [[ $TRAVIS_PYTHON_VERSION == 3.2 || $TRAVIS_PYTHON_VERSION == 3.3 || $TRAVIS_PYTHON_VERSION == 3.4 || $TRAVIS_PYTHON_VERSION == 3.5 ]]; then py.test;else pytest; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then py.test;else pytest; fi
