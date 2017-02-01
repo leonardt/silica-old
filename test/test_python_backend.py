@@ -39,3 +39,28 @@ def test_counter():
         assert counter.IO.done.value == 0
         next(counter)
     assert counter.IO.done.value == 1
+
+@fsm("python")
+def uart_transmitter(data : Input[8], signal : Input, tx : Output):
+    while True:
+        yield
+        if signal:
+            tx = 0  # start bit
+            yield
+            for i in range(0, 8):
+                tx = data[i]
+                yield
+            tx = 1  # end bit
+            yield
+
+def test_uart_tx():
+    data = 0xBE
+    uart_transmitter.IO.data.value   = data
+    uart_transmitter.IO.signal.value = 1
+
+    expected = "0{0:b}1".format(data)
+    actual = ""
+    for i in range(0, 10):
+        next(uart_transmitter)
+        actual += str(uart_transmitter.IO.tx.value)
+    assert expected == actual
