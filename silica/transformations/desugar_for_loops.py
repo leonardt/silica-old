@@ -1,5 +1,5 @@
 import ast
-from fsm_dsl.ast_utils import *
+from silica.ast_utils import *
 
 class ForLoopDesugarer(ast.NodeTransformer):
     def visit_For(self, node):

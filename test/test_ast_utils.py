@@ -1,4 +1,4 @@
-from fsm_dsl.ast_utils import *
+from silica.ast_utils import *
 
 def test_is_call_true():
     assert is_call(ast.Call(ast.Name("test", ast.Load()), [], []))

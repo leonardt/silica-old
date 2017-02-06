@@ -1,4 +1,4 @@
-from fsm_dsl import fsm, Input, Output
+from silica import fsm, Input, Output
 
 @fsm("python")
 def signal(valid : Input, done : Input, run : Output):

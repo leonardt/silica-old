@@ -1,6 +1,6 @@
 import ast
-from fsm_dsl.ast_utils import *
-from fsm_dsl.types import *
+from silica.ast_utils import *
+from silica.types import *
 
 class IOVar:
     def __init__(self, name, typ, width):
