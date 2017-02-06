@@ -1,14 +1,10 @@
 import ast
 import astor
 
-class BasicBlock:
+class Block:
     def __init__(self):
-        self.statements = []
         self.outgoing_edges = set()
         self.incoming_edges = set()
-
-    def add(self, stmt):
-        self.statements.append(stmt)
 
     def add_outgoing_edge(self, sink, label):
         self.outgoing_edges.add((sink, label))
@@ -16,10 +12,22 @@ class BasicBlock:
     def add_incoming_edge(self, source, label):
         self.incoming_edges.add((source, label))
 
-class Branch(BasicBlock):
+class BasicBlock(Block):
+    def __init__(self):
+        super().__init__()
+        self.statements = []
+
+    def add(self, stmt):
+        self.statements.append(stmt)
+
+
+class Branch(Block):
     def __init__(self, cond):
         super().__init__()
         self.cond = cond
+
+class Yield(Block):
+    pass
 
 
 class ControlFlowGraph(ast.NodeVisitor):
@@ -38,6 +46,11 @@ class ControlFlowGraph(ast.NodeVisitor):
 
     def new_branch(self, test):
         block = Branch(test)
+        self.blocks.append(block)
+        return block
+
+    def new_yield(self):
+        block = Yield()
         self.blocks.append(block)
         return block
 
@@ -93,6 +106,13 @@ class ControlFlowGraph(ast.NodeVisitor):
                 self.add_edge(end_else_block, self.curr_block)
             else:
                 self.add_edge(old_block, self.curr_block, label="F")
+        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Yield):
+            old_block = self.curr_block
+            self.curr_block = self.new_yield()
+            self.add_edge(old_block, self.curr_block)
+            old_block = self.curr_block
+            self.curr_block = self.get_new_block()
+            self.add_edge(old_block, self.curr_block)
         else:
             self.curr_block.add(stmt)
 
@@ -108,10 +128,10 @@ class ControlFlowGraph(ast.NodeVisitor):
     def consolidate_empty_blocks(self):
         new_blocks = []
         for block in self.blocks:
-            if len(block.statements) > 0 or isinstance(block, Branch):
-                new_blocks.append(block)
-            else:
+            if isinstance(block, BasicBlock) and len(block.statements) == 0:
                 self.remove_block(block)
+            else:
+                new_blocks.append(block)
         self.blocks = new_blocks
 
     def remove_if_trues(self):
@@ -137,10 +157,13 @@ class ControlFlowGraph(ast.NodeVisitor):
         for block in self.blocks:
             if isinstance(block, Branch):
                 label = "if " + astor.to_source(block.cond)
-                dot.node(str(id(block)), label.rstrip(), {"shape":"box"})
+                dot.node(str(id(block)), label.rstrip(), {"shape": "invhouse"})
+            elif isinstance(block, Yield):
+                label = "yield"
+                dot.node(str(id(block)), label.rstrip(), {"shape": "oval"})
             else:
                 label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
-                dot.node(str(id(block)), label.rstrip()) 
+                dot.node(str(id(block)), label.rstrip(), {"shape": "box"}) 
         # for source, sink, label in self.edges:
             for sink, label in block.outgoing_edges:
                 dot.edge(str(id(block)), str(id(sink)), label)
