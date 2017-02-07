@@ -127,17 +127,48 @@ def _compile(block):
         raise NotImplementedError(type(block))
     return prog
 
+class LocalVariableCollector(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        self.local_variables = set()
+        self.paramaters = set()
+
+    def visit_FunctionDef(self, node):
+        for arg in node.args.args:
+            self.paramaters.add(arg.arg)
+        [self.visit(s) for s in node.body]
+
+    def visit_For(self, node):
+        assert isinstance(node.target, ast.Name)
+        if node.target.id not in self.paramaters:
+            self.local_variables.add(node.target.id)
+        [self.visit(s) for s in node.body]
+
+    def visit_Assign(self, node):
+        assert len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+        if node.targets[0].id not in self.paramaters:
+            self.local_variables.add(node.targets[0].id)
+
+
+def collect_local_variables(tree):
+    collector = LocalVariableCollector()
+    collector.visit(tree)
+    return collector.local_variables
+
 class FSM:
     def __init__(self, f):
         tree = get_ast(f)
         params = []
         for arg in tree.args.args:
             params.append(arg.annotation.id.lower() + " " + arg.arg)
+        local_vars = collect_local_variables(tree)
         tree = desugar_for_loops(tree)
         cfg = ControlFlowGraph(tree)
 
         prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
         prog += "reg state = 0;\n"
+        for variable in local_vars:
+            prog += "reg {};\n".format(variable)
         prog += "always @(posedge CLKIN) begin\n"
         prog += "    case (state)\n"
         tab = "    "
