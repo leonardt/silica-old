@@ -6,9 +6,9 @@ Requires Python 3.5+
 
 # Development Setup
 ```
-pip install -r requirements.txt
-pip install pytest
-export PYTHONPATH=`pwd`:$PYTHONPATH
+pip3 install -r requirements.txt
+pip3 install pytest
+pip3 install -e .
 pytest  # Check tests pass
 ```
 ## Optional requirements
