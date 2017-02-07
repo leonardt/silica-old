@@ -25,6 +25,8 @@ class Branch(Block):
     def __init__(self, cond):
         super().__init__()
         self.cond = cond
+        self.true_edge = None
+        self.false_edge = None
 
 class Yield(Block):
     pass
@@ -36,6 +38,7 @@ class ControlFlowGraph(ast.NodeVisitor):
         super()
         self.blocks = []
         self.curr_block = None
+        self.curr_yield_id = 0
 
         self.visit(ast)
 
@@ -49,8 +52,16 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.blocks.append(block)
         return block
 
+    def get_head_yield(self):
+        for block in self.blocks:
+            if isinstance(block, Yield) and block.yield_id == 0:
+                return block
+        assert False, "All CFGs should have at least 1 yield"
+
     def new_yield(self):
         block = Yield()
+        block.yield_id = self.curr_yield_id
+        self.curr_yield_id += 1
         self.blocks.append(block)
         return block
 
@@ -58,6 +69,18 @@ class ControlFlowGraph(ast.NodeVisitor):
         source.add_outgoing_edge(sink, label)
         sink.add_incoming_edge(source, label)
         # self.edges.append((source, sink, label))
+
+    def add_true_edge(self, source, sink):
+        assert isinstance(source, Branch)
+        source.add_outgoing_edge(sink, "T")
+        source.true_edge = sink
+        sink.add_incoming_edge(source, "T")
+
+    def add_false_edge(self, source, sink):
+        assert isinstance(source, Branch)
+        source.add_outgoing_edge(sink, "F")
+        source.false_edge = sink
+        sink.add_incoming_edge(source, "F")
 
     def outgoing_edges(block):
         edges = []
@@ -77,12 +100,12 @@ class ControlFlowGraph(ast.NodeVisitor):
             # self.curr_block.add(ast.If(stmt.test, [], []))
             old_block = self.curr_block
             self.curr_block = self.get_new_block()
-            self.add_edge(old_block, self.curr_block, label="T")
+            self.add_true_edge(old_block, self.curr_block)
             for sub_stmt in stmt.body:
                 self.process_stmt(sub_stmt)
             self.add_edge(self.curr_block, old_block)
             self.curr_block = self.get_new_block()
-            self.add_edge(old_block, self.curr_block, label="F")
+            self.add_false_edge(old_block, self.curr_block)
         elif isinstance(stmt, (ast.If,)):
             old_block = self.curr_block
             self.curr_block = self.new_branch(stmt.test)
@@ -90,7 +113,7 @@ class ControlFlowGraph(ast.NodeVisitor):
             # self.curr_block.add(stmt)
             old_block = self.curr_block
             self.curr_block = self.get_new_block()
-            self.add_edge(old_block, self.curr_block, label="T")
+            self.add_true_edge(old_block, self.curr_block)
             for sub_stmt in stmt.body:
                 self.process_stmt(sub_stmt)
             end_then_block = self.curr_block
@@ -105,7 +128,7 @@ class ControlFlowGraph(ast.NodeVisitor):
             if len(stmt.orelse) > 0:
                 self.add_edge(end_else_block, self.curr_block)
             else:
-                self.add_edge(old_block, self.curr_block, label="F")
+                self.add_false_edge(old_block, self.curr_block)
         elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Yield):
             old_block = self.curr_block
             self.curr_block = self.new_yield()
@@ -122,8 +145,21 @@ class ControlFlowGraph(ast.NodeVisitor):
         for sink, sink_label in block.outgoing_edges:
             sink.incoming_edges.remove((block, sink_label))
         for source, source_label in block.incoming_edges:
-            for sink, sink_label in block.outgoing_edges:
-                self.add_edge(source, sink, source_label)
+            if isinstance(source, Branch):
+                if len(block.outgoing_edges) == 1:
+                    sink, sink_label = list(block.outgoing_edges)[0]
+                    self.add_edge(source, sink, source_label)
+                    if source_label == "F":
+                        source.false_edge = sink
+                    elif source_label == "T":
+                        source.true_edge = sink
+                    else:
+                        assert False
+                else:
+                    assert len(block.outgoing_edges) == 0
+            else:
+                for sink, sink_label in block.outgoing_edges:
+                    self.add_edge(source, sink, source_label)
 
     def consolidate_empty_blocks(self):
         new_blocks = []
