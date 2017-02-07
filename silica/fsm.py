@@ -14,7 +14,7 @@ def find_paths(block):
     paths = []
     for sink, _ in block.outgoing_edges:
         for path in find_paths(sink):
-            paths.append([sink] + path)
+            paths.append([block] + path)
     return paths
 
 
