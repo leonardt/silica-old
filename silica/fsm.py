@@ -105,22 +105,24 @@ def _compile(block):
     tab = "    "
     prog = ""
     if isinstance(block, Branch):
-        prog += "if {}:\n".format(astor.to_source(block.cond).rstrip())
+        prog += "if {} begin\n".format(astor.to_source(block.cond).rstrip())
         for line in _compile(block.true_edge).splitlines():
             prog += tab + line + "\n"
+        prog += "end\n"
         if block.false_edge is not None:
             print(block.false_edge)
-            prog += "else:\n"
+            prog += "else begin\n"
             for line in _compile(block.false_edge).splitlines():
                 prog += tab + line + "\n"
+            prog += "end"
     elif isinstance(block, BasicBlock):
         for stmt in block.statements:
-            prog += astor.to_source(stmt)
+            prog += astor.to_source(stmt).rstrip() + ";\n"
         for edge, _ in block.outgoing_edges:
             for line in _compile(edge).splitlines():
                 prog += line + "\n"
     elif isinstance(block, Yield):
-        prog += "state = {}\n".format(block.yield_id)
+        prog += "state = {};\n".format(block.yield_id)
     else:
         raise NotImplementedError(type(block))
     return prog
@@ -128,18 +130,25 @@ def _compile(block):
 class FSM:
     def __init__(self, f):
         tree = get_ast(f)
+        params = []
+        for arg in tree.args.args:
+            params.append(arg.annotation.id.lower() + " " + arg.arg)
         tree = desugar_for_loops(tree)
         cfg = ControlFlowGraph(tree)
 
-        prog = "state = 0\n"
-        prog += "while True:\n"
+        prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
+        prog += "reg state = 0;\n"
+        prog += "always @(posedge CLKIN) begin\n"
+        prog += "    case (state)\n"
         tab = "    "
         for block in cfg.blocks:
             if isinstance(block, Yield):
-                prog += tab + "if state == {}:\n".format(block.yield_id)
+                prog += tab + "{}:\n".format(block.yield_id)
                 assert len(block.outgoing_edges) == 1, "Yield should only have one exit"
                 for line in _compile(list(block.outgoing_edges)[0][0]).splitlines():
                     prog += tab * 2 + line + "\n"
+        prog += "end\n"
+        prog += "endmodule"
         print(prog)
         exit()
 
