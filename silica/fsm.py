@@ -7,6 +7,7 @@ from silica.python_backend import PyFSM
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 from silica.ast_utils import *
 from silica.transformations import desugar_for_loops
+from silica.fsm_ir import *
 from copy import deepcopy
 
 
@@ -110,7 +111,6 @@ def _compile(block):
             prog += tab + line + "\n"
         prog += "end\n"
         if block.false_edge is not None:
-            print(block.false_edge)
             prog += "else begin\n"
             for line in _compile(block.false_edge).splitlines():
                 prog += tab + line + "\n"
@@ -160,27 +160,28 @@ class FSM:
         tree = get_ast(f)
         params = []
         for arg in tree.args.args:
-            params.append(arg.annotation.id.lower() + " " + arg.arg)
+            params.append(Declaration(Symbol(arg.annotation.id.lower()), Symbol(arg.arg)))
         local_vars = collect_local_variables(tree)
         tree = desugar_for_loops(tree)
         cfg = ControlFlowGraph(tree)
+        tree = convert_to_fsm_ir(cfg, params, local_vars)
 
-        prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
-        prog += "reg state = 0;\n"
-        for variable in local_vars:
-            prog += "reg {};\n".format(variable)
-        prog += "always @(posedge CLKIN) begin\n"
-        prog += "    case (state)\n"
-        tab = "    "
-        for block in cfg.blocks:
-            if isinstance(block, Yield):
-                prog += tab + "{}:\n".format(block.yield_id)
-                assert len(block.outgoing_edges) == 1, "Yield should only have one exit"
-                for line in _compile(list(block.outgoing_edges)[0][0]).splitlines():
-                    prog += tab * 2 + line + "\n"
-        prog += "end\n"
-        prog += "endmodule"
-        print(prog)
+        # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
+        # prog += "reg state = 0;\n"
+        # for variable in local_vars:
+        #     prog += "reg {};\n".format(variable)
+        # prog += "always @(posedge CLKIN) begin\n"
+        # prog += "    case (state)\n"
+        # tab = "    "
+        # for block in cfg.blocks:
+        #     if isinstance(block, Yield):
+        #         prog += tab + "{}:\n".format(block.yield_id)
+        #         assert len(block.outgoing_edges) == 1, "Yield should only have one exit"
+        #         for line in _compile(list(block.outgoing_edges)[0][0]).splitlines():
+        #             prog += tab * 2 + line + "\n"
+        # prog += "end\n"
+        # prog += "endmodule"
+        # print(prog)
         exit()
 
 
