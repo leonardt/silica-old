@@ -1,0 +1,6 @@
+*.bin
+*.txt
+*.blif
+data_controller.v
+signal.v
+uart_transmitter.v

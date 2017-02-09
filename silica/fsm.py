@@ -156,15 +156,27 @@ def collect_local_variables(tree):
     return collector.local_variables
 
 class FSM:
-    def __init__(self, f):
+    def __init__(self, f, clock_enable=False):
         tree = get_ast(f)
+        name = tree.name
         params = []
         for arg in tree.args.args:
-            params.append(Declaration(Symbol(arg.annotation.id.lower()), Symbol(arg.arg)))
+            if isinstance(arg.annotation, ast.Subscript):
+                assert isinstance(arg.annotation.slice.value, ast.Num)
+                assert isinstance(arg.annotation.value, ast.Name)
+                typ = Subscript(Symbol(arg.annotation.value.id.lower()), 
+                                Slice(Constant(arg.annotation.slice.value.n - 1), Constant(0)))
+            else:
+                typ = Symbol(arg.annotation.id.lower())
+            params.append(Declaration(typ, Symbol(arg.arg)))
+
+        if clock_enable:
+            params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
         local_vars = collect_local_variables(tree)
         tree = desugar_for_loops(tree)
         cfg = ControlFlowGraph(tree)
-        tree = convert_to_fsm_ir(cfg, params, local_vars)
+        # cfg.render()
+        tree = convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable)
 
         # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
         # prog += "reg state = 0;\n"
@@ -182,16 +194,15 @@ class FSM:
         # prog += "end\n"
         # prog += "endmodule"
         # print(prog)
-        exit()
 
 
-def fsm(mode_or_fn):
+def fsm(mode_or_fn="", clock_enable=False):
     if isinstance(mode_or_fn, str):
         def wrapped(fn):
             if mode_or_fn == "python":
-                return PyFSM(fn)
+                return PyFSM(fn, clock_enable)
             else:
-                return FSM(fn)
+                return FSM(fn, clock_enable)
         return wrapped
     return FSM(mode_or_fn)
 

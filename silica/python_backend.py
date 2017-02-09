@@ -61,7 +61,7 @@ def rewrite_io_vars(tree, io_vars):
 
 
 class PyFSM:
-    def __init__(self, f):
+    def __init__(self, f, clock_enable):
         tree = get_ast(f)
         io_vars = []
         for arg in tree.args.args:
