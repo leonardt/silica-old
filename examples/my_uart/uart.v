@@ -25,11 +25,16 @@ module main (input  CLKIN, output TX, input RX, output D1, output D2, output D3,
 
     initial begin
         rx_run = 1;
+        tx_run = 0;
     end
     always @(posedge baud_rx_out) begin
         if (rx_run && rx_done) begin
-            tx_run = 1;
-            rx_run = 0;
+            tx_run <= 1;
+            rx_run <= 0;
+        end
+        if (tx_run && tx_done) begin
+            tx_run <= 0;
+            rx_run <= 1;
         end
     end
 

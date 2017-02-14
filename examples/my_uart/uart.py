@@ -31,8 +31,9 @@ def uart_transmitter(data : Input[8], run : Input, tx : Output, done : Output):
     i = Reg(4)
     while True:
         yield
+        tx = 1
+        done = 0
         if run:
-            done = 0
             tx = 0  # start bit
             yield
             for i in range(0, 8):
@@ -50,11 +51,11 @@ def uart_receiver(rx : Input, run : Input, data : Output[8], done : Output):
     l = Reg(4)
     while True:
         yield
+        done = 0
         if run:
-            done = 0
             while rx:  # wait for rx line low
                 yield
-            for i in range(0, 7):  # sample at middle of data
+            for i in range(0, 8):  # sample at middle of data
                 yield
             for j in range(0, 8):
                 for k in range(0, 15):
