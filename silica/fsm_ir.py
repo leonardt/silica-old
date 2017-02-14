@@ -6,7 +6,7 @@ class Node:
     tab = "    "
     semicolon = ";"
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         raise NotImplementedError(type(self))
 
     def prune_branches(self, symbol_table):
@@ -22,10 +22,10 @@ class Block(Node):
             body = [body]
         self.body = body
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         prog = "begin\n"
         for s in self.body:
-            for line in s.dump(nonblocking).splitlines():
+            for line in s.dump(nonblocking, python).splitlines():
                 prog += self.tab + line + s.semicolon + "\n"
         prog += "end"
         return prog
@@ -47,7 +47,7 @@ class Block(Node):
                 if s._else is not None:
                     s._else.prune_branches(deepcopy(symbol_table))
                 try:
-                    if eval(s.cond.dump(), deepcopy(symbol_table)):
+                    if eval(s.cond.dump(python=True), deepcopy(symbol_table)):
                         new_body.extend(s.then.body)
                     else:
                         new_body.extend(s._else.body)
@@ -68,13 +68,13 @@ class Module(Block):
         self.name = name
         self.params = params
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         prog  = "module {}({}, input CLKIN);\n".format(
             self.name,
-            ", ".join(p.dump(nonblocking) for p in self.params)
+            ", ".join(p.dump(nonblocking, python) for p in self.params)
         )
         for s in self.body:
-            for line in s.dump(nonblocking).splitlines():
+            for line in s.dump(nonblocking, python).splitlines():
                 prog += self.tab + line + s.semicolon + "\n"
         prog += "endmodule"
         return prog
@@ -83,7 +83,7 @@ class Symbol(Node):
     def __init__(self, name):
         self.name = name
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         return self.name
 
 class Subscript(Node):
@@ -91,23 +91,23 @@ class Subscript(Node):
         self.target = target
         self.index = index
 
-    def dump(self, nonblocking=False):
-        return "{}[{}]".format(self.target.dump(), self.index.dump())
+    def dump(self, nonblocking=False, python=False):
+        return "{}[{}]".format(self.target.dump(nonblocking, python), self.index.dump(nonblocking, python))
 
 class Slice(Node):
     def __init__(self, bottom, top):
         self.bottom = bottom
         self.top = top
 
-    def dump(self, nonblocking=False):
-        return "{}:{}".format(self.bottom.dump(), self.top.dump())
+    def dump(self, nonblocking=False, python=False):
+        return "{}:{}".format(self.bottom.dump(nonblocking, python), self.top.dump(nonblocking, python))
 
 class Constant(Node):
     def __init__(self, value):
         self.value = value
         self.qualified = False
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         if self.qualified:
             return "{0}'b{1:b}".format(max(self.value.bit_length(), 1), self.value)
         else:
@@ -122,24 +122,33 @@ class Declaration(Node):
         self.name = name
         self.width = width
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         return "{} {} {}".format(
-            self.typ.dump(nonblocking), 
+            self.typ.dump(nonblocking, python), 
             "[{}:0]".format(self.width - 1) if self.width > 1 else "",
-            self.name.dump(nonblocking))
+            self.name.dump(nonblocking, python))
 
 class Op(Node):
-    def __init__(self, op):
+    def __init__(self, op, python_op=None):
         self.op = op
+        self.python_op = python_op
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
+        if python and self.python_op is not None:
+            return self.python_op
         return self.op
 
-Add = Op("+")
-Lt  = Op("<")
+Add   = Op("+")
+Sub   = Op("-")
+Mul   = Op("*")
+Lt    = Op("<")
+BitOr = Op("|")
 binop_map = {
     ast.Add: Add,
+    ast.Sub: Sub,
     ast.Lt:  Lt,
+    ast.BitOr:  BitOr,
+    ast.Mult: Mul
 }
 
 class BinaryOp(Node):
@@ -148,23 +157,38 @@ class BinaryOp(Node):
         self.op = op
         self.right = right
 
-    def dump(self, nonblocking=False):
-        return "{} {} {}".format(self.left.dump(nonblocking),
-                self.op.dump(nonblocking), self.right.dump(nonblocking))
+    def dump(self, nonblocking=False, python=False):
+        return "{} {} {}".format(self.left.dump(nonblocking, python),
+                self.op.dump(nonblocking, python), self.right.dump(nonblocking, python))
 
     def qualify_constants(self):
         self.left.qualify_constants()
         self.right.qualify_constants()
+
+LogicalNot = Op("!", "not")
+
+unop_map = {
+    ast.Not: LogicalNot,
+}
+
+class UnaryOp(Node):
+    def __init__(self, op, operand):
+        self.op = op
+        self.operand = operand
+
+    def dump(self, nonblocking=False, python=False):
+        return "{}({})".format(self.op.dump(nonblocking, python), self.operand.dump(nonblocking, python))
+
 
 class Assign(Node):
     def __init__(self, target, value):
         self.target = target
         self.value = value
 
-    def dump(self, nonblocking=False):
-        return "{} {}= {}".format(self.target.dump(nonblocking),
+    def dump(self, nonblocking=False, python=False):
+        return "{} {}= {}".format(self.target.dump(nonblocking, python),
                 "<" if nonblocking else "",
-                self.value.dump(nonblocking))
+                self.value.dump(nonblocking, python))
 
     def qualify_constants(self):
         self.target.qualify_constants()
@@ -176,12 +200,12 @@ class AlwaysPosedgeBlock(Node):
         self.body = Block(body)
         self.clock_enable = clock_enable
 
-    def dump(self, nonblocking=False):
+    def dump(self, nonblocking=False, python=False):
         prog = "always @(posedge CLKIN) "
         if self.clock_enable:
             prog += "if (clock_enable) "
         # prog += self.body.dump(True)
-        prog += self.body.dump()
+        prog += self.body.dump(nonblocking, python)
 
         return prog
 
@@ -201,11 +225,11 @@ class Case(Node):
         assert isinstance(bodies, dict)
         self.bodies = bodies
 
-    def dump(self, nonblocking=False):
-        prog = "case ({})\n".format(self.cond.dump(nonblocking))
+    def dump(self, nonblocking=False, python=False):
+        prog = "case ({})\n".format(self.cond.dump(nonblocking, python))
         for key, body in self.bodies.items():
             block = "{}: ".format(key)
-            block += body.dump(nonblocking) + "\n"
+            block += body.dump(nonblocking, python) + "\n"
             for line in block.splitlines():
                 prog += self.tab + line + "\n"
         prog += "endcase"
@@ -226,12 +250,12 @@ class If(Node):
         self.then = Block(then)
         self._else = Block(_else)
 
-    def dump(self, nonblocking=False):
-        prog = "if ({}) ".format(self.cond.dump(nonblocking))
-        prog += self.then.dump(nonblocking)
+    def dump(self, nonblocking=False, python=False):
+        prog = "if ({}) ".format(self.cond.dump(nonblocking, python))
+        prog += self.then.dump(nonblocking, python)
         if self._else is not None:
             prog += " else "
-            prog += self._else.dump(nonblocking)
+            prog += self._else.dump(nonblocking, python)
         return prog
 
     def qualify_constants(self):
@@ -281,6 +305,8 @@ def _compile(block):
         return BinaryOp(_compile(block.left), binop_map[type(block.op)], _compile(block.right))
     elif isinstance(block, ast.Subscript):
         return Subscript(_compile(block.value), _compile(block.slice.value))
+    elif isinstance(block, ast.UnaryOp):
+        return UnaryOp(unop_map[type(block.op)], _compile(block.operand))
     else:
         raise NotImplementedError(type(block))
     return prog

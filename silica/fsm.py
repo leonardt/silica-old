@@ -145,9 +145,15 @@ class LocalVariableCollector(ast.NodeVisitor):
         [self.visit(s) for s in node.body]
 
     def visit_Assign(self, node):
-        assert len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-        if node.targets[0].id not in self.paramaters:
-            self.local_variables.add(node.targets[0].id)
+        assert len(node.targets) == 1
+        if isinstance(node.targets[0], ast.Name):
+            if node.targets[0].id not in self.paramaters:
+                self.local_variables.add(node.targets[0].id)
+        elif isinstance(node.targets[0], ast.Subscript):
+            if node.targets[0].value.id not in self.paramaters:
+                raise NotImplementedError()
+        else:
+            raise NotImplementedError()
 
 
 def collect_local_variables(tree):
@@ -156,7 +162,7 @@ def collect_local_variables(tree):
     return collector.local_variables
 
 class FSM:
-    def __init__(self, f, clock_enable=False):
+    def __init__(self, f, clock_enable=False, render_cfg=False):
         tree = get_ast(f)
         name = tree.name
         params = []
@@ -175,7 +181,8 @@ class FSM:
         local_vars = collect_local_variables(tree)
         tree = desugar_for_loops(tree)
         cfg = ControlFlowGraph(tree)
-        # cfg.render()
+        if render_cfg:
+            cfg.render()
         tree = convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable)
 
         # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
@@ -196,13 +203,13 @@ class FSM:
         # print(prog)
 
 
-def fsm(mode_or_fn="", clock_enable=False):
+def fsm(mode_or_fn="", clock_enable=False, render_cfg=False):
     if isinstance(mode_or_fn, str):
         def wrapped(fn):
             if mode_or_fn == "python":
-                return PyFSM(fn, clock_enable)
+                return PyFSM(fn, clock_enable, render_cfg)
             else:
-                return FSM(fn, clock_enable)
+                return FSM(fn, clock_enable, render_cfg)
         return wrapped
     return FSM(mode_or_fn)
 

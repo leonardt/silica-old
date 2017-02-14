@@ -3,6 +3,14 @@ from silica.ast_utils import *
 
 class ForLoopDesugarer(ast.NodeTransformer):
     def visit_For(self, node):
+        new_body = []
+        for s in node.body:
+            result = self.visit(s)
+            if isinstance(result, list):
+                new_body.extend(result)
+            else:
+                new_body.append(result)
+        node.body = new_body
         if is_call(node.iter) and is_name(node.iter.func) and \
            node.iter.func.id == "range" and 4 > len(node.iter.args) > 1:
             assert isinstance(node.target, ast.Name)
