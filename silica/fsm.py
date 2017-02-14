@@ -207,7 +207,7 @@ def fsm(mode_or_fn="", clock_enable=False, render_cfg=False):
     if isinstance(mode_or_fn, str):
         def wrapped(fn):
             if mode_or_fn == "python":
-                return PyFSM(fn, clock_enable, render_cfg)
+                return PyFSM(fn, clock_enable)
             else:
                 return FSM(fn, clock_enable, render_cfg)
         return wrapped
