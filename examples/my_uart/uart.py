@@ -3,7 +3,7 @@ from silica import fsm, Input, Output
 
 @fsm
 def baud_rx(out : Output):
-    # 12 mhz / (115200 * 16) = 6.5
+    # 12 mhz / (28800 * 16) = 26
     i = Reg(16)
     while True:
         yield
@@ -15,7 +15,7 @@ def baud_rx(out : Output):
 
 @fsm
 def baud_tx(out : Output):
-    # 12 mhz / (115200 hz) = 104
+    # 12 mhz / (28800 hz) = 416
     i = Reg(16)
     while True:
         yield
@@ -48,9 +48,7 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
 @fsm(clock_enable=True)
 def uart_receiver(rx : Input, ready : Input, data : Output[8], valid : Output):
     i = Reg(4)
-    j = Reg(6)
-    k = Reg(6)
-    l = Reg(6)
+    j = Reg(4)
     data = Reg(8)
     while True:
         yield
@@ -59,16 +57,16 @@ def uart_receiver(rx : Input, ready : Input, data : Output[8], valid : Output):
             if not rx:
                 for i in range(0, 8):  # sample at middle of data
                     yield
-                if not rx:
+                if not rx:  # Check if still low
                     for j in range(0, 8):
-                        for k in range(0, 15):
+                        for i in range(0, 15):
                             yield
                         data[j] = rx
                         yield
-                    for k in range(0, 15):
+                    for i in range(0, 15):
                         yield
                     valid = 1  # end bit
                     yield
                     valid = 0
-                    for k in range(0, 14):
+                    for i in range(0, 14):
                         yield
