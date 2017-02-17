@@ -1,5 +1,14 @@
 from silica import fsm, Input, Output
 
+@fsm
+def gray_counter(out : Output[4], enable : Input, clear : Input):
+    count = Reg(4)
+    while True:
+        yield
+        for count in range(0, 16):
+            count = count + 1
+            out = {count[3], count[2:0] ^ count[3:1]}
+            yield
 
 @fsm
 def baud_rx(out : Output):

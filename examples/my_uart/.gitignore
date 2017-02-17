@@ -8,3 +8,4 @@ baud_rx.v
 baud_tx.v
 uart_control.v
 uart_receiver.v
+gray_counter.v
