@@ -4,11 +4,11 @@ from silica import fsm, Input, Output
 @fsm
 def baud_rx(out : Output):
     # 12 mhz / (115200 * 16) = 6.5
-    i = Reg(8)
+    i = Reg(16)
     while True:
         yield
         out = 0
-        for i in range(0, 5):
+        for i in range(0, 24):
             yield
         out = 1
 
@@ -16,11 +16,11 @@ def baud_rx(out : Output):
 @fsm
 def baud_tx(out : Output):
     # 12 mhz / (115200 hz) = 104
-    i = Reg(8)
+    i = Reg(16)
     while True:
         yield
         out = 0
-        for i in range(0, 102):
+        for i in range(0, 414):
             yield
         out = 1
 
@@ -67,10 +67,8 @@ def uart_receiver(rx : Input, ready : Input, data : Output[8], valid : Output):
                         yield
                     for k in range(0, 15):
                         yield
-                    valid = rx  # end bit
+                    valid = 1  # end bit
                     yield
                     valid = 0
-                    for k in range(0, 15):
-                        yield
-                    for k in range(0, 15):
+                    for k in range(0, 14):
                         yield
