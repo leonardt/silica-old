@@ -4,44 +4,30 @@
 `include "data_controller.v"
 `include "uart_control.v"
 `include "uart_receiver.v"
+`include "aFifo.v"
 module main (input  CLKIN, output TX, input RX, output D1, output D2, output D3, output D4, output D5);
     wire baud_tx_out;
     baud_tx baud_tx_inst(.out(baud_tx_out), .CLKIN(CLKIN));
     wire baud_rx_out;
     baud_rx baud_rx_inst(.out(baud_rx_out), .CLKIN(CLKIN));
 
-    wire rx_run;
-    wire rx_done;
-    wire tx_run;
-    wire tx_done;
-    // uart_control uart_control_isnt(.rx_run(rx_run), .rx_done(rx_done), .tx_run(tx_run), .tx_done(tx_done), .clock_enable(baud_tx_out), .CLKIN(CLKIN));
-    wire [7:0] data;
-    uart_receiver uart_receiver_inst(.rx(RX), .run(rx_run), .data(data), .done(rx_done), .clock_enable(baud_rx_out), .CLKIN(CLKIN));
-    assign D5 = data[0];
-    assign D4 = data[1];
-    assign D3 = data[2];
-    assign D2 = data[3];
-    assign D1 = rx_run;
+    wire rx_valid;
+    wire [7:0] tx_data;
+    wire [7:0] rx_data;
+    wire read_empty;
+    wire tx_ready;
+    wire fifo_full;
 
-    initial begin
-        rx_run = 1;
-        tx_run = 0;
-    end
-    always @(posedge baud_rx_out) begin
-        if (rx_run && rx_done) begin
-            tx_run <= 1;
-            rx_run <= 0;
-        end
-        if (tx_run && tx_done) begin
-            tx_run <= 0;
-            rx_run <= 1;
-        end
-    end
+    aFifo fifo(.Data_out(tx_data), .Empty_out(read_empty),
+        .ReadEn_in(tx_ready), .RClk(baud_tx_out), .Data_in(rx_data),
+        .Full_out(fifo_full), .WriteEn_in(rx_valid), .WClk(baud_rx_out),
+        .Clear_in(0));
 
-    // wire run;
-    // wire done;
-    // wire [7:0] data;
-    // data_controller data_controller_inst(.data(data), .clock_enable(done & baud_out), .CLKIN(CLKIN));
+    uart_receiver uart_receiver_inst(.rx(RX), .ready(~fifo_full),
+        .data(rx_data), .valid(rx_valid), .clock_enable(baud_rx_out),
+        .CLKIN(CLKIN));
 
-    uart_transmitter uart_transmitter_inst(.data(data), .run(tx_run), .tx(TX), .done(tx_done), .clock_enable(baud_tx_out), .CLKIN(CLKIN));
+    uart_transmitter uart_transmitter_inst(.data(tx_data), .valid(~read_empty),
+        .tx(TX), .ready(tx_ready),
+        .clock_enable(baud_tx_out), .CLKIN(CLKIN));
 endmodule

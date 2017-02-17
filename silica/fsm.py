@@ -150,8 +150,9 @@ class LocalVariableCollector(ast.NodeVisitor):
             if node.targets[0].id not in self.paramaters:
                 self.local_variables.add(node.targets[0].id)
         elif isinstance(node.targets[0], ast.Subscript):
-            if node.targets[0].value.id not in self.paramaters:
-                raise NotImplementedError()
+            pass
+            # if node.targets[0].value.id not in self.paramaters:
+            #     raise NotImplementedError()
         else:
             raise NotImplementedError()
 
