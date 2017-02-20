@@ -102,13 +102,6 @@ class Slice(Node):
     def dump(self, nonblocking=False, python=False):
         return "{}:{}".format(self.bottom.dump(nonblocking, python), self.top.dump(nonblocking, python))
 
-class Bundle(Node):
-    def __init__(self, elts):
-        self.elts = elts
-
-    def dump(self, nonblocking=False, python=False):
-        return "{" + ", ".join(e.dump() for e in self.elts) + "}"
-
 class Constant(Node):
     def __init__(self, value):
         self.value = value
@@ -145,18 +138,16 @@ class Op(Node):
             return self.python_op
         return self.op
 
-Add    = Op("+")
-Sub    = Op("-")
-Mul    = Op("*")
-Lt     = Op("<")
-BitOr  = Op("|")
-BitXor = Op("^")
+Add   = Op("+")
+Sub   = Op("-")
+Mul   = Op("*")
+Lt    = Op("<")
+BitOr = Op("|")
 binop_map = {
     ast.Add: Add,
     ast.Sub: Sub,
     ast.Lt:  Lt,
     ast.BitOr:  BitOr,
-    ast.BitXor:  BitXor,
     ast.Mult: Mul
 }
 
@@ -313,16 +304,9 @@ def _compile(block):
     elif isinstance(block, ast.BinOp):
         return BinaryOp(_compile(block.left), binop_map[type(block.op)], _compile(block.right))
     elif isinstance(block, ast.Subscript):
-        return Subscript(_compile(block.value), _compile(block.slice))
-    elif isinstance(block, ast.Index):
-        return _compile(block.value)
-    elif isinstance(block, ast.Slice):
-        assert block.upper, "Not implemented yet"
-        return Slice(_compile(block.lower), _compile(block.upper))
+        return Subscript(_compile(block.value), _compile(block.slice.value))
     elif isinstance(block, ast.UnaryOp):
         return UnaryOp(unop_map[type(block.op)], _compile(block.operand))
-    elif isinstance(block, ast.Set):
-        return Bundle([_compile(e) for e in block.elts])
     else:
         raise NotImplementedError(type(block))
     return prog

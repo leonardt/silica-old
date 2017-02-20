@@ -10,7 +10,7 @@
 //=========================================
 
 `timescale 1ns/1ps
-`include "gray_counter.v"
+`include "GrayCounter.v"
 
 module aFifo
   #(parameter    DATA_WIDTH    = 8,
@@ -57,20 +57,20 @@ module aFifo
     assign NextReadAddressEn  = ReadEn_in  & ~Empty_out;
            
     //Addreses (Gray counters) logic:
-    gray_counter GrayCounter_pWr
-       (.out(pNextWordToWrite),
+    GrayCounter GrayCounter_pWr
+       (.GrayCount_out(pNextWordToWrite),
        
-        .enable(NextWriteAddressEn),
-        .clear(Clear_in),
+        .Enable_in(NextWriteAddressEn),
+        .Clear_in(Clear_in),
         
-        .CLKIN(WClk)
+        .Clk(WClk)
        );
        
-    gray_counter GrayCounter_pRd
-       (.out(pNextWordToRead),
-        .enable(NextReadAddressEn),
-        .clear(Clear_in),
-        .CLKIN(RClk)
+    GrayCounter GrayCounter_pRd
+       (.GrayCount_out(pNextWordToRead),
+        .Enable_in(NextReadAddressEn),
+        .Clear_in(Clear_in),
+        .Clk(RClk)
        );
      
 
