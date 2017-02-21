@@ -3,7 +3,9 @@ Silica
 ### A Language for Constructing Finite State Machines in Hardware
 Leonard Truong
 
+```
 * What is the goal of the project? What problem are you trying to solve?
+```
 In the 1980s, as hardware design shifted to VLSI, "modern" HDLs such as Verilog
 and VHDL emerged as tools for circuit designers to document and simulate
 existing circuit designs. Then, the application of logic synthesis allowed HDL
@@ -35,11 +37,17 @@ performance is not as important as rapid feature development, while C might be
 chosen for a real-time image processing application.  Hardware designers are
 not afforded this luxury of choice.
 
+```
 * What do you hope to show when you are done? What are your deliverables?
+```
+```
 * Why is it interesting, challenging, or important about the project?
+```
 
+```
 * What previous work has been performed in this area?
   What resources do you plan on drawing upon?
+```
 
 Related Work
 ------------
@@ -50,6 +58,8 @@ Related Work
 
 
 # Timeline
+```
   * What are the major tasks and results you intend to pursue?
   * How will you break them down?
   * How are you planning to divide responsibility within your team?
+```
