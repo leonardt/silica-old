@@ -28,6 +28,7 @@ in the 1990s:
 * 1995 – Java
 * 1995 – JavaScript
 * 1995 – PHP
+
 The vast space of software applications and their different characteristics has
 lead to the development of many programming languages, models, and paradigms.
 The diverse landscape of software programming languages allows software
