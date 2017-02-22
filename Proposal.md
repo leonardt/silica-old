@@ -6,50 +6,40 @@ Leonard Truong
 ```
 * What is the goal of the project? What problem are you trying to solve?
 ```
-In the 1980s, as hardware design shifted to VLSI, "modern" HDLs such as Verilog
-and VHDL emerged as tools for circuit designers to document and simulate
-existing circuit designs. Then, the application of logic synthesis allowed HDL
-source files to be compiled into manufacturable netlist descriptions in terms
-of gates and transistors.  The productivity advantage of synthesizable HDLs
-outweighed the cost of the typically less area-efficient and less performant
-circuits.
 
-TODO: most of the work in HDLs since has been improving Verilog
-
-Unlike hardware description languages, the domain of software programming
-languages has a colorful history.  A truncated list of languages introduced
-in the 1990s:
-* 1990 – Haskell
-* 1991 – Python
-* 1991 – Visual Basic
-* 1993 – Ruby
-* 1993 – Lua
-* 1993 – R
-* 1995 – Java
-* 1995 – JavaScript
-* 1995 – PHP
-
-The vast space of software applications and their different characteristics has
-lead to the development of many programming languages, models, and paradigms.
-The diverse landscape of software programming languages allows software
-architects to choose the right tool for the application. For example, a dynamic
-language like Python might be chosen to implement a web service where raw
-performance is not as important as rapid feature development, while C might be
-chosen for a real-time image processing application.  Hardware designers are
-not afforded this luxury of choice.
+The design and implementation of finite state machines represent a critical
+aspect of hardware design.  Silica aims to improve the productivity of hardware
+designers by introducing a language for describing finite state machines (FSMs)
+as coroutines.  Building an FSM in Silica should be less verbose and less error
+prone than the Verilog counterpart.
 
 ```
 * What do you hope to show when you are done? What are your deliverables?
 ```
+Our target application is a hardware image processing pipeline that contains a
+diverse set of finite state machines including a camera protocol, a vga
+controller, and image processing modules.  We aim to replace as much of the
+state machine logic found in the existing pipeline with FSMs written in Silica.
+
 ```
 * Why is it interesting, challenging, or important about the project?
 ```
+On the frontend, Silica introduces a software programming construct
+(coroutines) to the domain of hardware languages.  We adjust coroutine
+semantics to include the notion of time (what happens between yields occurs in
+one clock cycle), creating a natural language of describing FSMs in hardware.
+
+On the backend, Silica represents a case study in using Magma as a target for
+domain specific hardware languages.  The power of the Magma ecosystem is that
+many DSLs can be layered on top to provide flexible programming environments.
+Silica will demonstrate how to use Magma as a DSL target, as well as driving
+improvements in the Magma design and implementation.
+
 
 ```
 * What previous work has been performed in this area?
   What resources do you plan on drawing upon?
 ```
-
 Related Work
 ------------
 ### Hardware Description Languages
@@ -59,8 +49,8 @@ Related Work
 
 
 # Timeline
-```
-  * What are the major tasks and results you intend to pursue?
-  * How will you break them down?
-  * How are you planning to divide responsibility within your team?
-```
+* Completed  - Basic Frontend with Verilog backend (working UART TX/RX)
+* March 3rd  - Magma Backend
+* March 10th - Integrate with existing Rigel app (on Ross's board)
+* March 17th - CoreIR/Magma integration
+
