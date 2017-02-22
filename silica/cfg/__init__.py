@@ -100,13 +100,19 @@ class ControlFlowGraph(ast.NodeVisitor):
                 self.add_edge(end_else_block, self.curr_block)
             else:
                 self.add_false_edge(old_block, self.curr_block)
-        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Yield):
-            old_block = self.curr_block
-            self.curr_block = self.new_yield()
-            self.add_edge(old_block, self.curr_block)
-            old_block = self.curr_block
-            self.curr_block = self.get_new_block()
-            self.add_edge(old_block, self.curr_block)
+        elif isinstance(stmt, ast.Expr):
+            if isinstance(stmt.value, ast.Yield):
+                old_block = self.curr_block
+                self.curr_block = self.new_yield()
+                self.add_edge(old_block, self.curr_block)
+                old_block = self.curr_block
+                self.curr_block = self.get_new_block()
+                self.add_edge(old_block, self.curr_block)
+            elif isinstance(stmt.value, ast.Str): 
+                # Docstring, ignore
+                pass
+            else:
+                raise NotImplementedError(stmt.value)
         else:
             self.curr_block.add(stmt)
 

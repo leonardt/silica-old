@@ -46,27 +46,27 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
             yield
 
 @fsm(clock_enable=True)
-def uart_receiver(rx : Input, ready : Input, data : Output[8], valid : Output):
+def uart_receiver(rx : Input, 
+                  ready : Input, 
+                  data : Output[8], 
+                  valid : Output):
+    """
+    yield from range(8) -> yield for 8 cycles
+    """
     i = Reg(4)
-    j = Reg(4)
     data = Reg(8)
     while True:
         yield
         valid = 0
-        if ready:
-            if not rx:
-                for i in range(0, 8):  # sample at middle of data
+        if ready and not rx:
+            yield from range(8)
+            if not rx:  # Check if still low
+                for i in range(8):
+                    yield from range(15)
+                    data[i] = rx
                     yield
-                if not rx:  # Check if still low
-                    for j in range(0, 8):
-                        for i in range(0, 15):
-                            yield
-                        data[j] = rx
-                        yield
-                    for i in range(0, 15):
-                        yield
-                    valid = 1  # end bit
-                    yield
-                    valid = 0
-                    for i in range(0, 14):
-                        yield
+                yield from range(15)
+                valid = 1  # end bit
+                yield
+                valid = 0
+                yield from range(14)

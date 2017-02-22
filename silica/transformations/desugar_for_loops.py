@@ -12,21 +12,28 @@ class ForLoopDesugarer(ast.NodeTransformer):
                 new_body.append(result)
         node.body = new_body
         if is_call(node.iter) and is_name(node.iter.func) and \
-           node.iter.func.id == "range" and 4 > len(node.iter.args) > 1:
+           node.iter.func.id == "range" and 4 > len(node.iter.args) > 0:
             assert isinstance(node.target, ast.Name)
-            if len(node.iter.args) == 2:
+            if len(node.iter.args) <= 2:
                 incr = ast.Num(1)
             else:
                 incr = node.iter.args[2]
+            if len(node.iter.args) == 1:
+                start = ast.Num(0)
+                end = node.iter.args[0]
+            else:
+                start = node.iter.args[0]
+                end = node.iter.args[1]
             return [
-                ast.Assign([node.target], node.iter.args[0]),
-                ast.While(ast.BinOp(node.target, ast.Lt(), node.iter.args[1]),
+                ast.Assign([node.target], start),
+                ast.While(ast.BinOp(node.target, ast.Lt(), end),
                     node.body + [
                         ast.Assign([node.target], ast.BinOp(
                             node.target, ast.Add(), incr))
                     ], [])
             ]
         else:
+            print_ast(node)
             raise NotImplementedError("Unsupport for loop construct {}".format(node.iter))
 
 def desugar_for_loops(tree):

@@ -6,7 +6,7 @@ import textwrap
 from silica.python_backend import PyFSM
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 from silica.ast_utils import *
-from silica.transformations import desugar_for_loops
+from silica.transformations import desugar_for_loops, desugar_yield_from_range
 from silica.fsm_ir import *
 from copy import deepcopy
 
@@ -179,8 +179,11 @@ class FSM:
 
         if clock_enable:
             params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
-        local_vars = collect_local_variables(tree)
+        # local_vars = collect_local_variables(tree)
+        tree, loopvars = desugar_yield_from_range(tree)
         tree = desugar_for_loops(tree)
+        local_vars = set()
+        local_vars.update(loopvars)
         cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()

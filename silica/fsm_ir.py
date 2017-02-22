@@ -1,6 +1,7 @@
 from silica.cfg import *
 import ast
 from copy import deepcopy
+import silica.ast_utils as ast_utils
 
 class Node:
     tab = "    "
@@ -138,17 +139,21 @@ class Op(Node):
             return self.python_op
         return self.op
 
-Add   = Op("+")
-Sub   = Op("-")
-Mul   = Op("*")
-Lt    = Op("<")
-BitOr = Op("|")
+Add    = Op("+")
+Sub    = Op("-")
+Mul    = Op("*")
+Lt     = Op("<")
+BitOr  = Op("|")
+BitAnd = Op("&")
+And    = Op("&")
 binop_map = {
     ast.Add: Add,
     ast.Sub: Sub,
     ast.Lt:  Lt,
     ast.BitOr:  BitOr,
-    ast.Mult: Mul
+    ast.BitAnd: BitAnd,
+    ast.Mult: Mul,
+    ast.And: And
 }
 
 class BinaryOp(Node):
@@ -307,7 +312,17 @@ def _compile(block):
         return Subscript(_compile(block.value), _compile(block.slice.value))
     elif isinstance(block, ast.UnaryOp):
         return UnaryOp(unop_map[type(block.op)], _compile(block.operand))
+    elif isinstance(block, ast.BoolOp):
+        curr = _compile(block.values[0])
+        for value in block.values[1:]:
+            curr = BinaryOp(_compile(value), binop_map[type(block.op)], curr)
+        return curr
+    elif isinstance(block, ast.Expr):
+        if isinstance(block.value, ast.Str):
+            return []  # docstring, ignore
+        raise NotImplementedError(type(block))
     else:
+        ast_utils.print_ast(block)
         raise NotImplementedError(type(block))
     return prog
 
@@ -319,8 +334,8 @@ def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable):
         if len(block.incoming_edges) == 0:
             # Initial bloc
             module_body.extend(_compile(s) for s in block.statements)
-    # for var in local_vars:
-    #     module_body.append(Declaration(Symbol("reg"), Symbol(var)))
+    for var, width in local_vars:
+        module_body.append(Declaration(Subscript(Symbol("reg"), Slice(Constant(width - 1), Constant(0))), Symbol(var)))
 
     always_block_body = []
     module_body.append(AlwaysPosedgeBlock(always_block_body, clock_enable))

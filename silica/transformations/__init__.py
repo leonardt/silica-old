@@ -1,1 +1,2 @@
 from silica.transformations.desugar_for_loops import desugar_for_loops
+from silica.transformations.desugar_yield_from_range import desugar_yield_from_range
