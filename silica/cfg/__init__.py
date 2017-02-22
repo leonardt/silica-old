@@ -1,6 +1,7 @@
 import ast
 import astor
 from silica.cfg.types import Block, BasicBlock, Yield, Branch
+import tempfile
 
 
 class ControlFlowGraph(ast.NodeVisitor):
@@ -182,4 +183,4 @@ class ControlFlowGraph(ast.NodeVisitor):
                 dot.edge(str(id(block)), str(id(sink)), label)
 
 
-        dot.render("cfg.gv", view=True)
+        dot.render(tempfile.mktemp("gv"), view=True)
