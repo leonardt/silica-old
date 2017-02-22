@@ -33,10 +33,11 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
         yield
         tx = 1
         if valid:
+            # Signal the FIFO to load into data
             ready = 1
             yield
             ready = 0
-            yield
+
             tx = 0  # start bit
             yield
             for i in range(0, 8):
@@ -46,21 +47,21 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
             yield
 
 @fsm(clock_enable=True)
-def uart_receiver(rx : Input, 
+def uart_receiver(rx    : Input, 
                   ready : Input, 
-                  data : Output[8], 
+                  data  : Output[8], 
                   valid : Output):
     """
     yield from range(8) -> yield for 8 cycles
     """
-    i = Reg(4)
-    data = Reg(8)
+    i = Reg(4)     # TODO: Automatically infer width of loopvar, will need it for Magma
+    data = Reg(8)  # TODO: Can we just specify the output to be registered?
     while True:
         yield
         valid = 0
         if ready and not rx:
-            yield from range(8)
-            if not rx:  # Check if still low
+            yield from range(8)  # Wait half a baud period
+            if not rx:           # Check if still low
                 for i in range(8):
                     yield from range(15)
                     data[i] = rx
