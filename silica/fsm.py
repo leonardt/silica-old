@@ -7,6 +7,7 @@ from silica.python_backend import PyFSM
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 from silica.ast_utils import *
 from silica.transformations import desugar_for_loops, desugar_yield_from_range
+import os
 from silica.fsm_ir import *
 from copy import deepcopy
 
@@ -164,7 +165,9 @@ def collect_local_variables(tree):
 
 class FSM:
     def __init__(self, f, clock_enable=False, render_cfg=False):
-        tree = get_ast(f)
+        _file, line_no = astor.code_to_ast.get_file_info(f)
+        file_dir = os.path.dirname(_file)
+        tree = ast_utils.get_ast(f)
         name = tree.name
         params = []
         for arg in tree.args.args:
@@ -187,7 +190,7 @@ class FSM:
         cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()
-        tree = convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable)
+        tree = convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable, file_dir)
 
         # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
         # prog += "reg state = 0;\n"

@@ -2,6 +2,7 @@ from silica.cfg import *
 import ast
 from copy import deepcopy
 import silica.ast_utils as ast_utils
+import os
 
 class Node:
     tab = "    "
@@ -326,7 +327,7 @@ def _compile(block):
         raise NotImplementedError(type(block))
     return prog
 
-def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable):
+def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable, file_dir):
     module_body = []
     module = Module(name, params, module_body)
 
@@ -355,6 +356,6 @@ def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable):
         Assign(Declaration(Symbol("reg"), Symbol("state"), state_width), Constant(0)))
     module.prune_branches({})
     module.qualify_constants()
-    with open(name + ".v", "w") as f:
+    with open(os.path.join(file_dir, name + ".v"), "w") as f:
         f.write(module.dump())
 
