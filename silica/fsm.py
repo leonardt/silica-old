@@ -173,7 +173,11 @@ def get_global_vars_for_func(fn):
 
 class FSM:
     def __init__(self, f, clock_enable=False, render_cfg=False):
+        # TODO: Instead of global namespace for function, should get the
+        # current frame of the function definition (needed to support higher
+        # order definitions) with scoped/closure variables
         func_globals = get_global_vars_for_func(f)
+
         _file, line_no = astor.code_to_ast.get_file_info(f)
         file_dir = os.path.dirname(_file)
         tree = ast_utils.get_ast(f)
