@@ -327,9 +327,9 @@ def _compile(block):
         raise NotImplementedError(type(block))
     return prog
 
-def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable, file_dir):
+def convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir):
     module_body = []
-    module = Module(name, params, module_body)
+    module = Module(func_name, params, module_body)
 
     for block in cfg.blocks:
         if len(block.incoming_edges) == 0:
@@ -356,6 +356,6 @@ def convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable, file_dir):
         Assign(Declaration(Symbol("reg"), Symbol("state"), state_width), Constant(0)))
     module.prune_branches({})
     module.qualify_constants()
-    with open(os.path.join(file_dir, name + ".v"), "w") as f:
+    with open(os.path.join(file_dir, func_name + ".v"), "w") as f:
         f.write(module.dump())
 
