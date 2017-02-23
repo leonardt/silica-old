@@ -6,7 +6,8 @@ import textwrap
 from silica.python_backend import PyFSM
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 from silica.ast_utils import *
-from silica.transformations import desugar_for_loops, desugar_yield_from_range
+from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
+    specialize_constants
 import os
 from silica.fsm_ir import *
 from copy import deepcopy
@@ -163,12 +164,20 @@ def collect_local_variables(tree):
     collector.visit(tree)
     return collector.local_variables
 
+def get_global_vars_for_func(fn):
+    """
+    inspect.getmembers() returns a list of (name, value) pairs.
+    we are interested in name == __globals__
+    """
+    return [x for x in inspect.getmembers(fn) if x[0] == "__globals__"][0][1]
+
 class FSM:
     def __init__(self, f, clock_enable=False, render_cfg=False):
+        func_globals = get_global_vars_for_func(f)
         _file, line_no = astor.code_to_ast.get_file_info(f)
         file_dir = os.path.dirname(_file)
         tree = ast_utils.get_ast(f)
-        name = tree.name
+        func_name = tree.name
         params = []
         for arg in tree.args.args:
             if isinstance(arg.annotation, ast.Subscript):
@@ -183,14 +192,21 @@ class FSM:
         if clock_enable:
             params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
         # local_vars = collect_local_variables(tree)
+
+        constants = {}
+        for name, value in func_globals.items():
+            if isinstance(value, (int, )):
+                constants[name] = value
+        tree           = specialize_constants(tree, constants)
         tree, loopvars = desugar_yield_from_range(tree)
-        tree = desugar_for_loops(tree)
+        tree           = desugar_for_loops(tree)
+
         local_vars = set()
         local_vars.update(loopvars)
         cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()
-        tree = convert_to_fsm_ir(name, cfg, params, local_vars, clock_enable, file_dir)
+        tree = convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir)
 
         # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
         # prog += "reg state = 0;\n"

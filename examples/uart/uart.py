@@ -1,26 +1,26 @@
 from silica import fsm, Input, Output
 
+BAUD_RATE  = 28800
+CLOCK_RATE = int(12e6)  # 12 mhz
 
 @fsm
 def baud_rx(out : Output):
-    # 12 mhz / (28800 * 16) = 26
     i = Reg(16)
     while True:
         yield
         out = 0
-        for i in range(0, 24):
+        for i in range(0, CLOCK_RATE // (BAUD_RATE * 16) - 2):
             yield
         out = 1
 
 
 @fsm
 def baud_tx(out : Output):
-    # 12 mhz / (28800 hz) = 416
     i = Reg(16)
     while True:
         yield
         out = 0
-        for i in range(0, 414):
+        for i in range(0, (CLOCK_RATE // BAUD_RATE) - 2):
             yield
         out = 1
 
