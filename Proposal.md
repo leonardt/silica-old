@@ -21,6 +21,11 @@ diverse set of finite state machines including a camera protocol, a vga
 controller, and image processing modules.  We aim to replace as much of the
 state machine logic found in the existing pipeline with FSMs written in Silica.
 
+Alongside a demo application, Silica will drive the maintenance and development
+of the Magma internals that it depends on.  To support Silica, Magma will be
+updated for Python 3. Silica will also help define general interfaces for DSLs
+that wish to use Magma as a backend target.
+
 ```
 * Why is it interesting, challenging, or important about the project?
 ```
