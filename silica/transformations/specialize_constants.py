@@ -18,7 +18,10 @@ class ConstantFold(ast.NodeTransformer):
         node.right = self.visit(node.right)
         if isinstance(node.left, ast.Num) and \
            isinstance(node.right, ast.Num):
-            return ast.Num(eval(astor.to_source(node)))
+            result = eval(astor.to_source(node))
+            if result is True or result is False:
+                return ast.NameConstant(result)
+            return ast.Num(result)
         elif isinstance(node.op, ast.Mult) and \
              ((isinstance(node.left, ast.Num) and node.left.n == 0) or
               (isinstance(node.right, ast.Num) and node.right.n == 0)):
