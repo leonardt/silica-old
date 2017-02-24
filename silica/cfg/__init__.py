@@ -1,7 +1,9 @@
 import ast
 import astor
 from silica.cfg.types import Block, BasicBlock, Yield, Branch
+from silica.transformations import specialize_constants
 import tempfile
+from copy import deepcopy
 
 
 class ControlFlowGraph(ast.NodeVisitor):
@@ -13,6 +15,36 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.curr_yield_id = 0
 
         self.visit(ast)
+        self.bypass_conds()
+
+    def collect_constant_assigns(self, statements):
+        constant_assigns = {}
+        for stmt in statements:
+            if isinstance(stmt, ast.Assign):
+                if isinstance(stmt.value, ast.Num) and len(stmt.targets) == 1:
+                    if isinstance(stmt.targets[0], ast.Name):
+                        constant_assigns[stmt.targets[0].id] = stmt.value.n
+                    elif stmt.targets[0].name in constant_assigns:
+                        del constant_assigns[stmt.targets[0].id] 
+        return constant_assigns
+
+    def bypass_conds(self):
+        for block in self.blocks:
+            if isinstance(block, BasicBlock) and \
+               isinstance(block.outgoing_edge[0], Branch):
+                constants = self.collect_constant_assigns(block.statements)
+                branch = block.outgoing_edge[0]
+                cond = deepcopy(branch.cond)
+                cond = specialize_constants(cond, constants)
+                try:
+                    if eval(astor.to_source(cond)):
+                        # FIXME: Interface violation, need a remove method from blocks
+                        block.outgoing_edges = {(branch.true_edge, "")}
+                    else:
+                        block.outgoing_edges = {(branch.false_edge, "")}
+                except NameError:
+                    pass
+
 
     def get_new_block(self):
         block = BasicBlock()
@@ -64,7 +96,7 @@ class ControlFlowGraph(ast.NodeVisitor):
     def process_stmt(self, stmt):
         # TODO: Should be able to refactor this to reuse logic for "branching"
         # nodes
-        if isinstance(stmt, (ast.While, ast.For)):
+        if isinstance(stmt, ast.While):
             old_block = self.curr_block
             self.curr_block = self.new_branch(stmt.test)
             self.add_edge(old_block, self.curr_block)

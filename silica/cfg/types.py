@@ -20,6 +20,11 @@ class BasicBlock(Block):
     def add(self, stmt):
         self.statements.append(stmt)
 
+    @property
+    def outgoing_edge(self):
+        assert len(self.outgoing_edges) == 1
+        return next(iter(self.outgoing_edges))
+
 
 
 class Branch(Block):

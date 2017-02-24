@@ -144,13 +144,15 @@ Add    = Op("+")
 Sub    = Op("-")
 Mul    = Op("*")
 Lt     = Op("<")
+LtE    = Op("<=")
 BitOr  = Op("|")
 BitAnd = Op("&")
-And    = Op("&")
+And    = Op("&&")
 binop_map = {
     ast.Add: Add,
     ast.Sub: Sub,
     ast.Lt:  Lt,
+    ast.LtE: LtE,
     ast.BitOr:  BitOr,
     ast.BitAnd: BitAnd,
     ast.Mult: Mul,
@@ -317,6 +319,11 @@ def _compile(block):
         curr = _compile(block.values[0])
         for value in block.values[1:]:
             curr = BinaryOp(_compile(value), binop_map[type(block.op)], curr)
+        return curr
+    elif isinstance(block, ast.Compare):
+        curr = _compile(block.left)
+        for op, comparator in zip(block.ops, block.comparators):
+            curr = BinaryOp(curr, binop_map[type(op)], _compile(comparator))
         return curr
     elif isinstance(block, ast.Expr):
         if isinstance(block.value, ast.Str):
