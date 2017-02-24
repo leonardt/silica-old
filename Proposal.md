@@ -21,8 +21,7 @@ FSMs written in Silica.
 
 Alongside the demo application, Silica will drive the maintenance and
 development of Magma and CoreIR.  To support Silica, Magma will be updated for
-Python 3.  Silica will target CoreIR via Magma. To do this, CoreIR's C-api will
-be wrapped for Python 3 and hooked into Magma.
+Python 3.  CoreIR's C-api will be wrapped for Python 3 and hooked into Magma.
 
 Planned Contributions
 ---------------------
