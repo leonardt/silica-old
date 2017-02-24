@@ -34,11 +34,11 @@ def vga_timing(
     while True:
         for row in range(0, VGA_VSYNC_TS):
             for col in range(0, VGA_HSYNC_TS):
-                pixel_valid = VGA_VSYNC_OFFSET <= row <= VGA_VSYNC_OFFSET + VGA_NUM_ROWS - 1 and \
-                              VGA_HSYNC_OFFSET <= col <= VGA_HSYNC_OFFSET + VGA_NUM_COLS - 1
+                pixel_valid = VGA_VSYNC_OFFSET <= row <= VGA_VSYNC_OFFSET + VGA_NUM_ROWS and \
+                              VGA_HSYNC_OFFSET <= col <= VGA_HSYNC_OFFSET + VGA_NUM_COLS
 
-                horizontal_sync = 0 <= col <= VGA_HSYNC_TPW - 1
-                vertical_sync   = 0 <= row <= VGA_VSYNC_TPW - 1
+                horizontal_sync = 0 <= col < VGA_HSYNC_TPW
+                vertical_sync   = 0 <= row < VGA_VSYNC_TPW
 
                 vga_col = col - VGA_HSYNC_OFFSET
                 vga_row = row - VGA_VSYNC_OFFSET
