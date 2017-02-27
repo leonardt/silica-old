@@ -24,8 +24,9 @@ class ControlFlowGraph(ast.NodeVisitor):
                 if isinstance(stmt.value, ast.Num) and len(stmt.targets) == 1:
                     if isinstance(stmt.targets[0], ast.Name):
                         constant_assigns[stmt.targets[0].id] = stmt.value.n
-                    elif stmt.targets[0].name in constant_assigns:
-                        del constant_assigns[stmt.targets[0].id] 
+                    else:
+                        # TODO: This should already be guaranteed by a type checker
+                        assert stmt.targets[0].name in constant_assigns, "Assigned to multiple constants"
         return constant_assigns
 
     def bypass_conds(self):
@@ -56,12 +57,6 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.blocks.append(block)
         return block
 
-    def get_head_yield(self):
-        for block in self.blocks:
-            if isinstance(block, Yield) and block.yield_id == 0:
-                return block
-        assert False, "All CFGs should have at least 1 yield"
-
     def new_yield(self):
         block = Yield()
         block.yield_id = self.curr_yield_id
@@ -85,13 +80,6 @@ class ControlFlowGraph(ast.NodeVisitor):
         source.add_outgoing_edge(sink, "F")
         source.false_edge = sink
         sink.add_incoming_edge(source, "F")
-
-    def outgoing_edges(block):
-        edges = []
-        for source, _, _ in self.edges:
-            if source == block:
-                edges.append(source)
-        return edges
 
     def process_stmt(self, stmt):
         # TODO: Should be able to refactor this to reuse logic for "branching"
@@ -144,7 +132,7 @@ class ControlFlowGraph(ast.NodeVisitor):
             elif isinstance(stmt.value, ast.Str): 
                 # Docstring, ignore
                 pass
-            else:
+            else:  # pragma: no cover
                 raise NotImplementedError(stmt.value)
         else:
             self.curr_block.add(stmt)
@@ -163,7 +151,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                         source.false_edge = sink
                     elif source_label == "T":
                         source.true_edge = sink
-                    else:
+                    else:  # pragma: no cover
                         assert False
                 else:
                     assert len(block.outgoing_edges) == 0
@@ -197,7 +185,7 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.consolidate_empty_blocks()
         self.remove_if_trues()
 
-    def render(self):
+    def render(self):  # pragma: no cover
         from graphviz import Digraph
         dot = Digraph(name="top")
         for block in self.blocks:
