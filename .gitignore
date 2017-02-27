@@ -5,3 +5,4 @@
 *.dot
 silica.egg-info
 .cache
+__pycache__
