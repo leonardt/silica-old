@@ -180,7 +180,8 @@ class FSM:
 
         _file, line_no = astor.code_to_ast.get_file_info(f)
         file_dir = os.path.dirname(_file)
-        tree = ast_utils.get_ast(f)
+        # `ast_utils.get_ast` returns a module so grab first statement in body
+        tree = ast_utils.get_ast(f).body[0]  
         func_name = tree.name
         params = []
         for arg in tree.args.args:

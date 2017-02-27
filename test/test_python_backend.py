@@ -64,3 +64,29 @@ def test_uart_tx():
         next(uart_transmitter)
         actual += str(uart_transmitter.IO.tx.value)
     assert expected == actual
+
+
+def test_input_type_error():
+    try:
+        @fsm("python")
+        def write_to_input(a : Input, b : Output):
+            while True:
+                yield
+                a = 1
+                b = a
+        assert False, "Program should throw a type error"
+    except TypeError as e:
+        pass
+
+
+def test_output_type_error():
+    try:
+        @fsm("python")
+        def read_from_output(a : Input, b : Output, c : Output):
+            while True:
+                yield
+                b = a
+                c = b
+        assert False, "Program should throw a type error"
+    except TypeError as e:
+        assert str(e) == "Attempting to read from an Output variable b"
