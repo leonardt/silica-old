@@ -32,7 +32,7 @@ class ForLoopDesugarer(ast.NodeTransformer):
                             node.target, ast.Add(), incr))
                     ], [])
             ]
-        else:
+        else:  # pragma: no cover
             print_ast(node)
             raise NotImplementedError("Unsupport for loop construct {}".format(node.iter))
 
