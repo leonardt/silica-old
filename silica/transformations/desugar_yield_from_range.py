@@ -2,6 +2,7 @@ import ast
 
 class YieldFromRangeDesugarer(ast.NodeTransformer):
     def __init__(self):
+        super().__init__()
         self.loopvars = set()
 
     unique_id = -1
@@ -19,7 +20,7 @@ class YieldFromRangeDesugarer(ast.NodeTransformer):
             loopvar = self.gen_loopvar(width)
             return ast.For(ast.Name(loopvar, ast.Load()),
                            node.value,
-                           [ast.Expr(ast.Yield())], None)
+                           [ast.Expr(ast.Yield(None))], None)
         node.value = self.visit(node.value)
         return node
 
