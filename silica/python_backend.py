@@ -14,11 +14,6 @@ class IOVar:
         elif self.typ == "Output":
             return Output_(self.width)
 
-def get_io_vars(tree):
-    collector = IOCollector()
-    collector.visit(tree)
-    return collector.io_vars
-
 class IOVarRewriter(ast.NodeTransformer):
     def __init__(self, io_vars):
         super()
