@@ -28,7 +28,7 @@ class IOVarRewriter(ast.NodeTransformer):
     def visit_Assign(self, node):
         node.value = self.visit(node.value)
         if len(node.targets) > 1:
-            raise NotImplementedError("a, b, c = ... not implemented yet")
+            raise NotImplementedError("a, b, c = ... not implemented yet")  # pragma: no cover
         target = node.targets[0]
         if is_name(target) and target.id in self.symbol_table:
             typ = self.symbol_table[target.id]
@@ -46,8 +46,8 @@ class IOVarRewriter(ast.NodeTransformer):
             if typ == 'Input':
                 return ast.Attribute(node, "value", ast.Load())
             elif typ == 'Output':
-                # TODO: Linenumber?
-                raise TypeError("Attempting to read from an Output variable {}".format(target.id))
+                # TODO: Can we return the linenumber?
+                raise TypeError("Attempting to read from an Output variable {}".format(node.id))
         return node
 
 
@@ -57,7 +57,8 @@ def rewrite_io_vars(tree, io_vars):
 
 class PyFSM:
     def __init__(self, f, clock_enable):
-        tree = get_ast(f)
+        # `ast_utils.get_ast` returns a module so grab first statement in body
+        tree = get_ast(f).body[0]
         io_vars = []
         for arg in tree.args.args:
             annotation = arg.annotation

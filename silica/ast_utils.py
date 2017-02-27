@@ -1,5 +1,7 @@
 import ast
 import astor
+import inspect
+import textwrap
 
 
 def print_ast(tree):  # pragma: no cover
@@ -7,7 +9,10 @@ def print_ast(tree):  # pragma: no cover
 
 
 def get_ast(obj):
-    return astor.code_to_ast(obj)
+    indented_program_txt = inspect.getsource(obj)
+    program_txt = textwrap.dedent(indented_program_txt)
+    return ast.parse(program_txt)
+    # return astor.code_to_ast(obj)
 
 
 # TODO: would be cool to metaprogram these is_* funcs
