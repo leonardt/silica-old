@@ -147,7 +147,7 @@ Lt     = Op("<")
 LtE    = Op("<=")
 BitOr  = Op("|")
 BitAnd = Op("&")
-And    = Op("&&")
+And    = Op("&&", "and")
 binop_map = {
     ast.Add: Add,
     ast.Sub: Sub,
