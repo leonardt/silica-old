@@ -41,69 +41,6 @@ def specialize_symbol(tree, symbol, value):
     tree = deepcopy(tree)
     return SymbolSpecializer(symbol, value).visit(tree)
 
-
-class Path:
-    def __init__(self, blocks):
-        self.blocks = blocks[1:-1]
-        self.source_yield = blocks[0]
-        self.sink_yield = blocks[-1]
-
-    def contains_always_false_branch(self):
-        symbol_table = {}
-        for block in self.blocks:
-            if isinstance(block, BasicBlock):
-                for stmt in block.statements:
-                    if isinstance(stmt, ast.Assign) and \
-                        isinstance(stmt.value, ast.Num) and \
-                        len(stmt.targets) == 1 and \
-                        isinstance(stmt.targets[0], ast.Name):
-                            symbol_table[stmt.targets[0].id] = stmt.value.n
-                    elif isinstance(stmt, ast.Compare):
-                        tree = deepcopy(stmt)
-                        for symbol, value in symbol_table.items():
-                            if contains_symbol(tree, symbol):
-                                tree = specialize_symbol(tree, symbol, value)
-                        try:
-                            if eval(astor.to_source(tree)) is False:
-                                return True
-                        except NameError as e:
-                            pass
-        return False
-
-def find_paths(block):
-    if isinstance(block, Yield):
-        return [[block]]
-    paths = []
-    if isinstance(block, Branch):
-        new_block = BasicBlock()
-        new_block.add(ast.Compare(block.cond, [ast.Eq()], [ast.NameConstant(True)]))
-        for path in find_paths(block.true_edge):
-            paths.append([new_block] + path)
-
-        if block.false_edge is not None:
-            new_block = BasicBlock()
-            new_block.add(ast.Compare(block.cond, [ast.Eq()], [ast.NameConstant(False)]))
-            for path in find_paths(block.false_edge):
-                paths.append([new_block] + path)
-
-    else:
-        for sink, _ in block.outgoing_edges:
-            for path in find_paths(sink):
-                paths.append([block] + path)
-    return paths
-
-
-def find_paths_between_yields(cfg):
-    paths = []
-    for block in cfg.blocks:
-        if isinstance(block, Yield):
-            for sink, _ in block.outgoing_edges:
-                paths.extend([[block] + path for path in  find_paths(sink)])
-    return [Path(x) for x in paths]
-
-def filter_impossible_paths(paths):
-    return [path for path in paths if not path.contains_always_false_branch()]
-
 def _compile(block):
     tab = "    "
     prog = ""
@@ -212,23 +149,6 @@ class FSM:
         if render_cfg:
             cfg.render()
         tree = convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir)
-
-        # prog  = "module foo({}, input CLKIN)\n".format(", ".join(params))
-        # prog += "reg state = 0;\n"
-        # for variable in local_vars:
-        #     prog += "reg {};\n".format(variable)
-        # prog += "always @(posedge CLKIN) begin\n"
-        # prog += "    case (state)\n"
-        # tab = "    "
-        # for block in cfg.blocks:
-        #     if isinstance(block, Yield):
-        #         prog += tab + "{}:\n".format(block.yield_id)
-        #         assert len(block.outgoing_edges) == 1, "Yield should only have one exit"
-        #         for line in _compile(list(block.outgoing_edges)[0][0]).splitlines():
-        #             prog += tab * 2 + line + "\n"
-        # prog += "end\n"
-        # prog += "endmodule"
-        # print(prog)
 
 
 def fsm(mode_or_fn="", clock_enable=False, render_cfg=False):
