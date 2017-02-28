@@ -53,25 +53,48 @@ class TypeChecker(ast.NodeVisitor):
             return max(node.n.bit_length(), 1)
         elif isinstance(node, ast.Name):
             return self.symbol_table[node.id].width
+        elif isinstance(node, ast.Call) and node.func.id == "Reg":
+            assert len(node.args) == 1
+            return max(node.args[0].n.bit_length(), 1)
+        elif isinstance(node, ast.Subscript):
+            # FIXME: Support slices
+            return 1
         raise NotImplementedError(type(node))  # pragma: no cover
 
     def visit_Assign(self, node):
         self.visit(node.value)
         if len(node.targets) == 1:
             self.visit(node.targets[0])
-            assert isinstance(node.targets[0], ast.Name)
-            target = node.targets[0].id
             expr_width = self.get_width_of_expr(node.value)
-            if target in self.symbol_table:
-                target_width = self.symbol_table[target].width
-                if target_width != expr_width:
+            if isinstance(node.targets[0], ast.Name):
+                target = node.targets[0].id
+                if target in self.symbol_table:
+                    target_width = self.symbol_table[target].width
+                    if target_width < expr_width:
+                        raise TypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, target, target_width))
+                else:
+                    self.symbol_table[target] = Local(expr_width)
+            elif isinstance(node.targets[0], ast.Subscript):
+                # FIXME: Support slices
+                if expr_width > 1:
                     raise TypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, target, target_width))
-            else:
-                self.symbol_table[target] = Local(expr_width)
+
 
 
         else:
             raise NotImplementedError()  # pragma: no cover
+
+    def visit_Subscript(self, node):
+        if isinstance(node.value, ast.Name):
+            _id = node.value.id
+            if isinstance(node.ctx, ast.Load) and \
+               isinstance(self.symbol_table[_id], Output):
+                raise TypeError("Cannot read from `{}` with type Output".format(_id))
+            elif isinstance(node.ctx, ast.Store) and \
+                 isinstance(self.symbol_table[_id], Input):
+                raise TypeError("Cannot write to `{}` with type Input".format(_id))
+        else:
+            raise NotImplementedError()
 
     def visit_Name(self, node):
         if node.id in self.symbol_table:
