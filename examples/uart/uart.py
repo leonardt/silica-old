@@ -67,7 +67,7 @@ def uart_receiver(rx    : Input,
                     data[i] = rx
                     yield
                 yield from range(15)
-                valid = 1  # end bit
+                valid = rx  # end bit
                 yield
                 valid = 0
                 yield from range(14)
