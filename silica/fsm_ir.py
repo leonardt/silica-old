@@ -148,6 +148,7 @@ LtE    = Op("<=")
 BitOr  = Op("|")
 BitAnd = Op("&")
 And    = Op("&&", "and")
+Mod    = Op("%")
 binop_map = {
     ast.Add: Add,
     ast.Sub: Sub,
@@ -156,7 +157,8 @@ binop_map = {
     ast.BitOr:  BitOr,
     ast.BitAnd: BitAnd,
     ast.Mult: Mul,
-    ast.And: And
+    ast.And: And,
+    ast.Mod: Mod
 }
 
 class BinaryOp(Node):
