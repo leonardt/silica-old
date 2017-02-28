@@ -145,8 +145,9 @@ class FSM:
         tree           = desugar_for_loops(tree)
         type_check(tree)
 
-        local_vars = set()
-        local_vars.update(loopvars)
+        # local_vars = set()
+        # local_vars.update(loopvars)
+        local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()
