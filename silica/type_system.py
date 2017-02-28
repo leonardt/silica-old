@@ -1,4 +1,5 @@
 import ast
+import astor
 
 
 class TypeError(RuntimeError):
@@ -15,6 +16,10 @@ class Output(_Type):
 
 
 class Input(_Type):
+    pass
+
+
+class Local(_Type):
     pass
 
 
@@ -39,6 +44,36 @@ class TypeChecker(ast.NodeVisitor):
                 typ = arg.annotation.id
             self.symbol_table[arg.arg] = get_type(typ, width)
         [self.visit(s) for s in node.body]
+
+    def get_width_of_expr(self, node):
+        if isinstance(node, _Type):
+            return node.width
+        elif isinstance(node, ast.BinOp):
+            return max(self.get_width_of_expr(node.left),
+                       self.get_width_of_expr(node.right))
+        elif isinstance(node, ast.Num):
+            return max(node.n.bit_length(), 1)
+        elif isinstance(node, ast.Name):
+            return self.symbol_table[node.id].width
+        raise NotImplementedError(type(node))
+
+    def visit_Assign(self, node):
+        self.visit(node.value)
+        if len(node.targets) == 1:
+            self.visit(node.targets[0])
+            assert isinstance(node.targets[0], ast.Name)
+            target = node.targets[0].id
+            expr_width = self.get_width_of_expr(node.value)
+            if target in self.symbol_table:
+                target_width = self.symbol_table[target].width
+                if target_width != expr_width:
+                    raise TypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, target, target_width))
+            else:
+                self.symbol_table[target] = Local(expr_width)
+
+
+        else:
+            raise NotImplementedError()
 
     def visit_Name(self, node):
         if node.id in self.symbol_table:
