@@ -43,7 +43,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                         block.outgoing_edges = {(branch.true_edge, "")}
                     else:
                         block.outgoing_edges = {(branch.false_edge, "")}
-                except NameError:
+                except NameError as e:
                     pass
 
 
@@ -203,4 +203,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                 dot.edge(str(id(block)), str(id(sink)), label)
 
 
-        dot.render(tempfile.mktemp("gv"), view=True)
+        file_name = tempfile.mktemp("gv")
+        dot.render(file_name, view=True)
+        # print(file_name)
+        # exit()

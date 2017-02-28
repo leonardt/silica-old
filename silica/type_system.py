@@ -47,6 +47,8 @@ class TypeChecker(ast.NodeVisitor):
 
     def get_width_of_expr(self, node):
         if isinstance(node, ast.BinOp):
+            if isinstance(node.op, ast.Mod):
+                return self.get_width_of_expr(node.right) - 1
             return max(self.get_width_of_expr(node.left),
                        self.get_width_of_expr(node.right))
         elif isinstance(node, ast.Num):
