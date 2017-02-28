@@ -10,5 +10,5 @@ install:
 
 script: 
     - export PYTHONPATH=`pwd`
-    - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then py.test --cov=silica --cov-report term-missing test;else pytest --cov=silica --cov-report term-missing test; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then py.test --cov=silica test;else pytest --cov=silica test; fi
     - codecov
