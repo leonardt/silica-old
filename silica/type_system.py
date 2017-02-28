@@ -46,16 +46,14 @@ class TypeChecker(ast.NodeVisitor):
         [self.visit(s) for s in node.body]
 
     def get_width_of_expr(self, node):
-        if isinstance(node, _Type):
-            return node.width
-        elif isinstance(node, ast.BinOp):
+        if isinstance(node, ast.BinOp):
             return max(self.get_width_of_expr(node.left),
                        self.get_width_of_expr(node.right))
         elif isinstance(node, ast.Num):
             return max(node.n.bit_length(), 1)
         elif isinstance(node, ast.Name):
             return self.symbol_table[node.id].width
-        raise NotImplementedError(type(node))
+        raise NotImplementedError(type(node))  # pragma: no cover
 
     def visit_Assign(self, node):
         self.visit(node.value)
@@ -73,7 +71,7 @@ class TypeChecker(ast.NodeVisitor):
 
 
         else:
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
 
     def visit_Name(self, node):
         if node.id in self.symbol_table:
