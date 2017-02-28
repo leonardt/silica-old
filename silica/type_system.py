@@ -40,23 +40,14 @@ class TypeChecker(ast.NodeVisitor):
             self.symbol_table[arg.arg] = get_type(typ, width)
         [self.visit(s) for s in node.body]
 
-    def visit_Assign(self, node):
-        if len(node.targets) == 1:
-            if isinstance(node.targets[0], ast.Name):
-                symbol = node.targets[0].id
-                if symbol in self.symbol_table:
-                    if isinstance(self.symbol_table[symbol], Input):
-                        raise TypeError("Cannot write to `{}` with type Input".format(symbol))
-            else:
-                raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-        self.visit(node.value)
-
     def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Load) and node.id in self.symbol_table and \
-           isinstance(self.symbol_table[node.id], Output):
-            raise TypeError("Cannot read from `{}` with type Output".format(node.id))
+        if node.id in self.symbol_table:
+            if isinstance(node.ctx, ast.Load) and \
+               isinstance(self.symbol_table[node.id], Output):
+                raise TypeError("Cannot read from `{}` with type Output".format(node.id))
+            elif isinstance(node.ctx, ast.Store) and \
+                 isinstance(self.symbol_table[node.id], Input):
+                raise TypeError("Cannot write to `{}` with type Input".format(node.id))
 
 
 def type_check(tree):
