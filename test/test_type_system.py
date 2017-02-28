@@ -29,10 +29,10 @@ def test_read_from_output():
 def test_mismatched_width():
     try:
         @fsm
-        def bad_width(a : Input[3], b : Output[4]):
+        def bad_width(a : Input[4], b : Output[3]):
             while True:
                 yield
                 b = a + 1
         assert False, "Program should throw TypeError"
     except TypeError as e:
-        assert str(e) == "Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format("(a + 1)", 3, "b", 4)
+        assert str(e) == "Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format("(a + 1)", 4, "b", 3)

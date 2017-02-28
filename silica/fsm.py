@@ -110,10 +110,10 @@ def get_global_vars_for_func(fn):
     return [x for x in inspect.getmembers(fn) if x[0] == "__globals__"][0][1]
 
 class FSM:
-    def __init__(self, f, clock_enable=False, render_cfg=False):
+    def __init__(self, f, backend, clock_enable=False, render_cfg=False):
         # TODO: Instead of global namespace for function, should get the
         # current frame of the function definition (needed to support higher
-        # order definitions) with scoped/closure variables
+        # order definitions with scoped/closure variables)
         func_globals = get_global_vars_for_func(f)
 
         _file, line_no = astor.code_to_ast.get_file_info(f)
@@ -150,16 +150,19 @@ class FSM:
         cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()
-        tree = convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir)
+        if backend == "verilog":
+            tree = convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir)
+        else:
+            raise NotImplementedError(backend)
 
 
-def fsm(mode_or_fn="", clock_enable=False, render_cfg=False):
+def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
     if isinstance(mode_or_fn, str):
         def wrapped(fn):
             if mode_or_fn == "python":
                 return PyFSM(fn, clock_enable)
             else:
-                return FSM(fn, clock_enable, render_cfg)
+                return FSM(fn, mode_or_fn, clock_enable, render_cfg)
         return wrapped
-    return FSM(mode_or_fn)
+    return FSM(mode_or_fn, "verilog", clock_enable, render_cfg)
 
