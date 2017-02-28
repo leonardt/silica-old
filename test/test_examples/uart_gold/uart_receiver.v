@@ -55,7 +55,7 @@ module uart_receiver(input  rx, input  ready, output[7:0]  data, output  valid, 
                 if (____x2 < 4'b1111) begin
                     state = 3'b100;
                 end else begin
-                    valid = 1'b1;
+                    valid = rx;
                     state = 3'b101;
                 end
             end
