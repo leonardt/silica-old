@@ -8,6 +8,7 @@ from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 from silica.ast_utils import *
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
     specialize_constants
+from silica.type_system import type_check
 import os
 from silica.fsm_ir import *
 from copy import deepcopy
@@ -142,6 +143,7 @@ class FSM:
         tree           = specialize_constants(tree, constants)
         tree, loopvars = desugar_yield_from_range(tree)
         tree           = desugar_for_loops(tree)
+        type_check(tree)
 
         local_vars = set()
         local_vars.update(loopvars)
