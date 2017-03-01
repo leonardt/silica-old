@@ -1,6 +1,6 @@
 module baud_rx(output  out, input CLKIN);
     reg  state = 1'b0;
-    reg [15:0] i;
+    reg[4:0]  i;
     always @(posedge CLKIN) begin
         case (state)
             0: begin

@@ -7,39 +7,42 @@ def test_range_one_args():
 for x in range(15):
     print(x)
 """)
-    tree = desugar_for_loops(tree)
+    tree, loopvars = desugar_for_loops(tree)
     expected = """x = 0
 while x < 15:
     print(x)
     x = x + 1
 """
     assert expected == astor.to_source(tree)
+    assert loopvars == {("x", (15).bit_length())}
 
 def test_range_two_args():
     tree = ast.parse("""
 for x in range(0, 15):
     print(x)
 """)
-    tree = desugar_for_loops(tree)
+    tree, loopvars = desugar_for_loops(tree)
     expected = """x = 0
 while x < 15:
     print(x)
     x = x + 1
 """
     assert expected == astor.to_source(tree)
+    assert loopvars == {("x", (15).bit_length())}
 
 def test_range_three_args():
     tree = ast.parse("""
 for x in range(0, 15, 4):
     print(x)
 """)
-    tree = desugar_for_loops(tree)
+    tree, loopvars = desugar_for_loops(tree)
     expected = """x = 0
 while x < 15:
     print(x)
     x = x + 4
 """
     assert expected == astor.to_source(tree)
+    assert loopvars == {("x", (15).bit_length())}
 
 def test_nested_loops():
     tree = ast.parse("""
@@ -47,7 +50,7 @@ for x in range(0, 15):
     for y in range(0, 15):
         print(x, y)
 """)
-    tree = desugar_for_loops(tree)
+    tree, loopvars = desugar_for_loops(tree)
     expected = """x = 0
 while x < 15:
     y = 0
@@ -57,3 +60,4 @@ while x < 15:
     x = x + 1
 """
     assert expected == astor.to_source(tree)
+    assert loopvars == {("x", (15).bit_length()), ("y", (15).bit_length())}
