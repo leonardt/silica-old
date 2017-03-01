@@ -9,7 +9,7 @@ from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
     specialize_constants
-from silica.type_system import type_check
+from silica.type_checker import type_check
 import os
 from copy import deepcopy
 

@@ -2,7 +2,7 @@ import ast
 import astor
 
 
-class TypeError(RuntimeError):
+class SilicaTypeError(TypeError):
     pass
 
 
@@ -77,13 +77,13 @@ class TypeChecker(ast.NodeVisitor):
                 if target in self.symbol_table:
                     target_width = self.symbol_table[target].width
                     if target_width < expr_width:
-                        raise TypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, target, target_width))
+                        raise SilicaTypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, target, target_width))
                 else:
                     self.symbol_table[target] = Local(expr_width)
             elif isinstance(node.targets[0], ast.Subscript):
                 # FIXME: Support slices
                 if expr_width > 1:
-                    raise TypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, astor.to_source(node.targets[0]).rstrip(), 1))
+                    raise SilicaTypeError("Mismatched width, trying to assign expression `{}` of width {} to variable `{}` of width {}".format(astor.to_source(node.value).rstrip(), expr_width, astor.to_source(node.targets[0]).rstrip(), 1))
 
 
 
@@ -95,10 +95,10 @@ class TypeChecker(ast.NodeVisitor):
             _id = node.value.id
             if isinstance(node.ctx, ast.Load) and \
                isinstance(self.symbol_table[_id], Output):
-                raise TypeError("Cannot read from `{}` with type Output".format(_id))
+                raise SilicaTypeError("Cannot read from `{}` with type Output".format(_id))
             elif isinstance(node.ctx, ast.Store) and \
                  isinstance(self.symbol_table[_id], Input):
-                raise TypeError("Cannot write to `{}` with type Input".format(_id))
+                raise SilicaTypeError("Cannot write to `{}` with type Input".format(_id))
         else:
             raise NotImplementedError()  # pragma: no cover
 
@@ -106,10 +106,10 @@ class TypeChecker(ast.NodeVisitor):
         if node.id in self.symbol_table:
             if isinstance(node.ctx, ast.Load) and \
                isinstance(self.symbol_table[node.id], Output):
-                raise TypeError("Cannot read from `{}` with type Output".format(node.id))
+                raise SilicaTypeError("Cannot read from `{}` with type Output".format(node.id))
             elif isinstance(node.ctx, ast.Store) and \
                  isinstance(self.symbol_table[node.id], Input):
-                raise TypeError("Cannot write to `{}` with type Input".format(node.id))
+                raise SilicaTypeError("Cannot write to `{}` with type Input".format(node.id))
 
 
 def type_check(tree):
