@@ -90,3 +90,59 @@ def test_output_type_error():
         assert False, "Program should throw a type error"
     except TypeError as e:
         assert str(e) == "Attempting to read from an Output variable b"
+
+
+VGA_NUM_ROWS     = 48
+VGA_NUM_COLS     = 64
+
+
+# Following in terms of 25 MHz clock
+VGA_HSYNC_TDISP  = VGA_NUM_COLS
+VGA_HSYNC_TPW    = 9
+VGA_HSYNC_TFP    = 1
+VGA_HSYNC_TBP    = 4
+VGA_HSYNC_OFFSET = VGA_HSYNC_TPW + VGA_HSYNC_TBP
+VGA_HSYNC_TS     = VGA_HSYNC_OFFSET + VGA_HSYNC_TDISP + VGA_HSYNC_TFP
+
+# Following in terms of lines
+VGA_VSYNC_TDISP  = VGA_NUM_ROWS
+VGA_VSYNC_TPW    = 2
+VGA_VSYNC_TFP    = 1
+VGA_VSYNC_TBP    = 3
+VGA_VSYNC_OFFSET = VGA_VSYNC_TPW + VGA_VSYNC_TBP
+VGA_VSYNC_TS     = VGA_VSYNC_OFFSET + VGA_VSYNC_TDISP + VGA_VSYNC_TFP
+def test_vga():
+
+    @fsm("python", clock_enable=True)
+    def vga_timing(
+            horizontal_sync : Output,
+            vertical_sync   : Output,
+            pixel_valid     : Output,
+            vga_row         : Output[10],
+            vga_col         : Output[10]):
+        while True:
+            for row in range(0, VGA_VSYNC_TS):
+                for col in range(0, VGA_HSYNC_TS):
+                    pixel_valid = VGA_VSYNC_OFFSET <= row <= VGA_VSYNC_OFFSET + VGA_NUM_ROWS and \
+                                  VGA_HSYNC_OFFSET <= col <= VGA_HSYNC_OFFSET + VGA_NUM_COLS
+
+                    horizontal_sync = 0 <= col < VGA_HSYNC_TPW
+                    vertical_sync   = 0 <= row < VGA_VSYNC_TPW
+
+                    vga_col = col - VGA_HSYNC_OFFSET
+                    vga_row = row - VGA_VSYNC_OFFSET
+                    yield
+
+    for row in range(0, VGA_VSYNC_TS):
+        for col in range(0, VGA_HSYNC_TS):
+            assert vga_timing.IO.pixel_valid.value == (VGA_VSYNC_OFFSET <= row <= VGA_VSYNC_OFFSET + VGA_NUM_ROWS and \
+                          VGA_HSYNC_OFFSET <= col <= VGA_HSYNC_OFFSET + VGA_NUM_COLS)
+
+            assert vga_timing.IO.horizontal_sync.value == (0 <= col < VGA_HSYNC_TPW)
+            assert vga_timing.IO.vertical_sync.value   == (0 <= row < VGA_VSYNC_TPW)
+
+            int2bits = lambda x: [int(n) for n in bin(x)[2:].zfill(10)]
+            if vga_timing.IO.pixel_valid.value:
+                assert vga_timing.IO.vga_col.value == int2bits(col - VGA_HSYNC_OFFSET)
+                assert vga_timing.IO.vga_row.value == int2bits(row - VGA_VSYNC_OFFSET)
+            next(vga_timing)

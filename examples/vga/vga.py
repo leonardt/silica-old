@@ -21,16 +21,13 @@ VGA_VSYNC_TBP    = 33
 VGA_VSYNC_OFFSET = VGA_VSYNC_TPW + VGA_VSYNC_TBP
 VGA_VSYNC_TS     = VGA_VSYNC_OFFSET + VGA_VSYNC_TDISP + VGA_VSYNC_TFP
 
-@fsm(clock_enable=True)
+@fsm("python", clock_enable=True)
 def vga_timing(
         horizontal_sync : Output,
         vertical_sync   : Output,
         pixel_valid     : Output,
         vga_row         : Output[10],
-        vga_col         : Output[10],
-        clock           : Input,  # 25 Mhz
-        reset           : Input
-    ):
+        vga_col         : Output[10]):
     while True:
         for row in range(0, VGA_VSYNC_TS):
             for col in range(0, VGA_HSYNC_TS):
@@ -43,4 +40,3 @@ def vga_timing(
                 vga_col = col - VGA_HSYNC_OFFSET
                 vga_row = row - VGA_VSYNC_OFFSET
                 yield
-
