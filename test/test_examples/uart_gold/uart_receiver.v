@@ -1,11 +1,11 @@
 module uart_receiver(input  rx, input  ready, output[7:0]  data, output  valid, input  clock_enable, input CLKIN);
     reg [2:0] state = 1'b0;
-    reg [3:0] i;
     reg [7:0] data;
     reg[3:0]  ____x0;
     reg[3:0]  ____x1;
     reg[3:0]  ____x2;
     reg[3:0]  ____x3;
+    reg[3:0]  i;
     always @(posedge CLKIN) if (clock_enable) begin
         case (state)
             0: begin

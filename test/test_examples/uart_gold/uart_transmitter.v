@@ -1,6 +1,6 @@
 module uart_transmitter(input[7:0]  data, input  valid, output  tx, output  ready, input  clock_enable, input CLKIN);
     reg [2:0] state = 1'b0;
-    reg [3:0] i;
+    reg[3:0]  i;
     always @(posedge CLKIN) if (clock_enable) begin
         case (state)
             0: begin

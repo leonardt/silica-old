@@ -5,7 +5,6 @@ CLOCK_RATE = int(12e6)  # 12 mhz
 
 @fsm
 def baud_rx(out : Output):
-    i = Reg(16)
     while True:
         yield
         out = 0
@@ -16,7 +15,6 @@ def baud_rx(out : Output):
 
 @fsm
 def baud_tx(out : Output):
-    i = Reg(16)
     while True:
         yield
         out = 0
@@ -28,7 +26,6 @@ def baud_tx(out : Output):
 
 @fsm(clock_enable=True)
 def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output):
-    i = Reg(4)
     while True:
         yield
         tx = 1
@@ -54,7 +51,6 @@ def uart_receiver(rx    : Input,
     """
     yield from range(8) -> yield for 8 cycles
     """
-    i = Reg(4)     # TODO: Automatically infer width of loopvar, will need it for Magma
     data = Reg(8)  # TODO: Can we just specify the output to be registered?
     while True:
         yield

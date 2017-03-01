@@ -2,6 +2,10 @@ import ast
 from silica.ast_utils import *
 
 class ForLoopDesugarer(ast.NodeTransformer):
+    def __init__(self):
+        super().__init__()
+        self.loopvars = set()
+
     def visit_For(self, node):
         new_body = []
         for s in node.body:
@@ -24,6 +28,8 @@ class ForLoopDesugarer(ast.NodeTransformer):
             else:
                 start = node.iter.args[0]
                 end = node.iter.args[1]
+            width = end.n.bit_length()
+            self.loopvars.add((node.target.id, width))
             return [
                 ast.Assign([node.target], start),
                 ast.While(ast.BinOp(node.target, ast.Lt(), end),
@@ -37,4 +43,6 @@ class ForLoopDesugarer(ast.NodeTransformer):
             raise NotImplementedError("Unsupport for loop construct {}".format(node.iter))
 
 def desugar_for_loops(tree):
-    return ForLoopDesugarer().visit(tree)
+    desugarer = ForLoopDesugarer()
+    desugarer.visit(tree)
+    return tree, desugarer.loopvars

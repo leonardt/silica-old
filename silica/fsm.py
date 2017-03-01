@@ -38,9 +38,12 @@ class FSM:
         tree = ast_utils.get_ast(f).body[0]  
         func_name = tree.name
 
+        local_vars = set()
         tree           = specialize_constants(tree, constants)
         tree, loopvars = desugar_yield_from_range(tree)
-        tree           = desugar_for_loops(tree)
+        local_vars.update(loopvars)
+        tree, loopvars = desugar_for_loops(tree)
+        local_vars.update(loopvars)
         type_check(tree)
 
         local_vars = list(sorted(loopvars))
