@@ -9,7 +9,7 @@ class Node:
     semicolon = ";"
 
     def dump(self, nonblocking=False, python=False):
-        raise NotImplementedError(type(self))
+        raise NotImplementedError(type(self))  # pragma: no cover
 
     def prune_branches(self, symbol_table):
         pass
@@ -42,7 +42,7 @@ class Block(Node):
                     elif isinstance(s.target, Declaration):
                         symbol_table[s.target.name.name] = s.value.value
                     else:
-                        raise NotImplementedError(type(s.target))
+                        raise NotImplementedError(type(s.target))  # pragma: no cover
                 new_body.append(s)
             elif isinstance(s, If):
                 s.then.prune_branches(deepcopy(symbol_table))
@@ -330,8 +330,8 @@ def _compile(block):
     elif isinstance(block, ast.Expr):
         if isinstance(block.value, ast.Str):
             return []  # docstring, ignore
-        raise NotImplementedError(type(block))
-    else:
+        raise NotImplementedError(type(block))  # pragma: no cover
+    else:  # pragma: no cover
         ast_utils.print_ast(block)
         raise NotImplementedError(type(block))
     return prog

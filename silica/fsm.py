@@ -46,11 +46,11 @@ class FSM:
         local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree)
         if render_cfg:
-            cfg.render()
+            cfg.render()  # pragma: no cover
         if backend == "verilog":
             tree = verilog.compile(func_name, tree, cfg, local_vars, clock_enable, file_dir)
         else:
-            raise NotImplementedError(backend)
+            raise NotImplementedError(backend)  # pragma: no cover
 
 
 def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
