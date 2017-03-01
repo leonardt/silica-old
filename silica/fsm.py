@@ -14,94 +14,6 @@ from silica.fsm_ir import *
 from copy import deepcopy
 
 
-class CheckTreeContainsSymbol(ast.NodeVisitor):
-    def __init__(self, symbol):
-        self.symbol = symbol
-        self.seen = False
-
-    def visit_Name(self, node):
-        if node.id == self.symbol:
-            self.seen = True
-
-def contains_symbol(tree, symbol):
-    visitor = CheckTreeContainsSymbol(symbol)
-    visitor.visit(tree)
-    return visitor.seen
-
-class SymbolSpecializer(ast.NodeTransformer):
-    def __init__(self, symbol, value):
-        self.symbol = symbol
-        self.value = value
-
-    def visit_Name(self, node):
-        if node.id == self.symbol:
-            return ast.Num(self.value)
-        return node
-
-def specialize_symbol(tree, symbol, value):
-    tree = deepcopy(tree)
-    return SymbolSpecializer(symbol, value).visit(tree)
-
-def _compile(block):
-    tab = "    "
-    prog = ""
-    if isinstance(block, Branch):
-        prog += "if {} begin\n".format(astor.to_source(block.cond).rstrip())
-        for line in _compile(block.true_edge).splitlines():
-            prog += tab + line + "\n"
-        prog += "end\n"
-        if block.false_edge is not None:
-            prog += "else begin\n"
-            for line in _compile(block.false_edge).splitlines():
-                prog += tab + line + "\n"
-            prog += "end"
-    elif isinstance(block, BasicBlock):
-        for stmt in block.statements:
-            prog += astor.to_source(stmt).rstrip() + ";\n"
-        for edge, _ in block.outgoing_edges:
-            for line in _compile(edge).splitlines():
-                prog += line + "\n"
-    elif isinstance(block, Yield):
-        prog += "state = {};\n".format(block.yield_id)
-    else:
-        raise NotImplementedError(type(block))
-    return prog
-
-class LocalVariableCollector(ast.NodeVisitor):
-    def __init__(self):
-        super().__init__()
-        self.local_variables = set()
-        self.paramaters = set()
-
-    def visit_FunctionDef(self, node):
-        for arg in node.args.args:
-            self.paramaters.add(arg.arg)
-        [self.visit(s) for s in node.body]
-
-    def visit_For(self, node):
-        assert isinstance(node.target, ast.Name)
-        if node.target.id not in self.paramaters:
-            self.local_variables.add(node.target.id)
-        [self.visit(s) for s in node.body]
-
-    def visit_Assign(self, node):
-        assert len(node.targets) == 1
-        if isinstance(node.targets[0], ast.Name):
-            if node.targets[0].id not in self.paramaters:
-                self.local_variables.add(node.targets[0].id)
-        elif isinstance(node.targets[0], ast.Subscript):
-            pass
-            # if node.targets[0].value.id not in self.paramaters:
-            #     raise NotImplementedError()
-        else:
-            raise NotImplementedError()
-
-
-def collect_local_variables(tree):
-    collector = LocalVariableCollector()
-    collector.visit(tree)
-    return collector.local_variables
-
 def get_global_vars_for_func(fn):
     """
     inspect.getmembers() returns a list of (name, value) pairs.
@@ -134,7 +46,6 @@ class FSM:
 
         if clock_enable:
             params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
-        # local_vars = collect_local_variables(tree)
 
         constants = {}
         for name, value in func_globals.items():
