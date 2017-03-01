@@ -1,6 +1,7 @@
 import ast
 from silica.ast_utils import *
 from silica.types import *
+from silica.transformations.specialize_constants import specialize_constants
 
 class IOVar:
     def __init__(self, name, typ, width):
@@ -54,6 +55,13 @@ class IOVarRewriter(ast.NodeTransformer):
 def rewrite_io_vars(tree, io_vars):
     return IOVarRewriter(io_vars).visit(tree)
 
+def get_global_vars_for_func(fn):
+    """
+    inspect.getmembers() returns a list of (name, value) pairs.
+    we are interested in name == __globals__
+    """
+    return [x for x in inspect.getmembers(fn) if x[0] == "__globals__"][0][1]
+
 
 class PyFSM:
     def __init__(self, f, clock_enable):
@@ -71,6 +79,12 @@ class PyFSM:
             io_vars.append(IOVar(arg.arg, annotation.id, width))
         tree = rewrite_io_vars(tree, io_vars)
         tree.decorator_list = []
+        constants = {}
+        func_globals = get_global_vars_for_func(f)
+        for name, value in func_globals.items():
+            if isinstance(value, (int, )):
+                constants[name] = value
+        tree = specialize_constants(tree, constants)
         src = astor.to_source(tree)
         # print(src)
         exec(src)
