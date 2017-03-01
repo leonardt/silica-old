@@ -336,7 +336,19 @@ def _compile(block):
         raise NotImplementedError(type(block))
     return prog
 
-def convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir):
+def compile(func_name, tree, cfg, local_vars, clock_enable, file_dir):
+    params = []
+    for arg in tree.args.args:
+        if isinstance(arg.annotation, ast.Subscript):
+            assert isinstance(arg.annotation.slice.value, ast.Num)
+            assert isinstance(arg.annotation.value, ast.Name)
+            typ = Subscript(Symbol(arg.annotation.value.id.lower()), 
+                            Slice(Constant(arg.annotation.slice.value.n - 1), Constant(0)))
+        else:
+            typ = Symbol(arg.annotation.id.lower())
+        params.append(Declaration(typ, Symbol(arg.arg)))
+    if clock_enable:
+        params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
     module_body = []
     module = Module(func_name, params, module_body)
 

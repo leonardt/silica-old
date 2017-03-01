@@ -3,14 +3,14 @@ import ast
 import astor
 import inspect
 import textwrap
-from silica.python_backend import PyFSM
+from silica.backend import PyFSM
+import silica.backend.verilog as verilog
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
-from silica.ast_utils import *
+import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
     specialize_constants
 from silica.type_system import type_check
 import os
-from silica.fsm_ir import *
 from copy import deepcopy
 
 
@@ -33,19 +33,6 @@ class FSM:
         # `ast_utils.get_ast` returns a module so grab first statement in body
         tree = ast_utils.get_ast(f).body[0]  
         func_name = tree.name
-        params = []
-        for arg in tree.args.args:
-            if isinstance(arg.annotation, ast.Subscript):
-                assert isinstance(arg.annotation.slice.value, ast.Num)
-                assert isinstance(arg.annotation.value, ast.Name)
-                typ = Subscript(Symbol(arg.annotation.value.id.lower()), 
-                                Slice(Constant(arg.annotation.slice.value.n - 1), Constant(0)))
-            else:
-                typ = Symbol(arg.annotation.id.lower())
-            params.append(Declaration(typ, Symbol(arg.arg)))
-
-        if clock_enable:
-            params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
 
         constants = {}
         for name, value in func_globals.items():
@@ -63,7 +50,7 @@ class FSM:
         if render_cfg:
             cfg.render()
         if backend == "verilog":
-            tree = convert_to_fsm_ir(func_name, cfg, params, local_vars, clock_enable, file_dir)
+            tree = verilog.compile(func_name, tree, cfg, local_vars, clock_enable, file_dir)
         else:
             raise NotImplementedError(backend)
 
