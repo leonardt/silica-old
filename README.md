@@ -1,7 +1,7 @@
+# Silica
 [![Build Status](https://travis-ci.org/leonardt/silica.svg?branch=master)](https://travis-ci.org/leonardt/silica)
 [![codecov](https://codecov.io/gh/leonardt/silica/branch/master/graph/badge.svg)](https://codecov.io/gh/leonardt/silica)
 
-# Silica
 A language embedded in Python for building Finite State Machines in hardware.
 
 Requires Python 3.5+
