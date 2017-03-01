@@ -13,4 +13,4 @@ script:
     - if [[ $TRAVIS_PYTHON_VERSION == 3.5 ]]; then py.test --cov=silica test;else pytest --cov=silica test; fi
 
 after_success:
-    - codecov
+    - bash <(curl -s https://codecov.io/bash)
