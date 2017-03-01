@@ -27,6 +27,10 @@ class FSM:
         # current frame of the function definition (needed to support higher
         # order definitions with scoped/closure variables)
         func_globals = get_global_vars_for_func(f)
+        constants = {}
+        for name, value in func_globals.items():
+            if isinstance(value, (int, )):
+                constants[name] = value
 
         _file, line_no = astor.code_to_ast.get_file_info(f)
         file_dir = os.path.dirname(_file)
@@ -34,17 +38,11 @@ class FSM:
         tree = ast_utils.get_ast(f).body[0]  
         func_name = tree.name
 
-        constants = {}
-        for name, value in func_globals.items():
-            if isinstance(value, (int, )):
-                constants[name] = value
         tree           = specialize_constants(tree, constants)
         tree, loopvars = desugar_yield_from_range(tree)
         tree           = desugar_for_loops(tree)
         type_check(tree)
 
-        # local_vars = set()
-        # local_vars.update(loopvars)
         local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree)
         if render_cfg:
