@@ -51,6 +51,10 @@ class TypeChecker(ast.NodeVisitor):
                 return self.get_width_of_expr(node.right) - 1
             return max(self.get_width_of_expr(node.left),
                        self.get_width_of_expr(node.right))
+        elif isinstance(node, ast.BoolOp):
+            return max(map(self.get_width_of_expr, node.values))
+        elif isinstance(node, ast.Compare):
+            return 1
         elif isinstance(node, ast.Num):
             return max(node.n.bit_length(), 1)
         elif isinstance(node, ast.Name):
