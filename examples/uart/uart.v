@@ -1,11 +1,10 @@
 `include "uart_transmitter.v"
 `include "baud_tx.v"
 `include "baud_rx.v"
-`include "data_controller.v"
 `include "uart_control.v"
 `include "uart_receiver.v"
 `include "aFifo.v"
-module main (input  CLKIN, output TX, input RX, output D1, output D2, output D3, output D4, output D5);
+module main (input  CLKIN, output TX, input RX);
     wire baud_tx_out;
     baud_tx baud_tx_inst(.out(baud_tx_out), .CLKIN(CLKIN));
     wire baud_rx_out;

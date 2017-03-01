@@ -1,8 +1,3 @@
 set_io CLKIN 21
 set_io TX 8
 set_io RX 9
-set_io D5 95
-set_io D4 96
-set_io D3 97
-set_io D2 98
-set_io D1 99
