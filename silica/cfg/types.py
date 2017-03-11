@@ -11,6 +11,15 @@ class Block:
     def add_incoming_edge(self, source, label=""):
         self.incoming_edges.add((source, label))
 
+    @property
+    def outgoing_edge(self):
+        assert len(self.outgoing_edges) == 1
+        return next(iter(self.outgoing_edges))
+
+
+class HeadBlock(Block):
+    pass
+
 
 class BasicBlock(Block):
     def __init__(self):
@@ -19,11 +28,6 @@ class BasicBlock(Block):
 
     def add(self, stmt):
         self.statements.append(stmt)
-
-    @property
-    def outgoing_edge(self):
-        assert len(self.outgoing_edges) == 1
-        return next(iter(self.outgoing_edges))
 
 
 
