@@ -1,7 +1,7 @@
 import ast
 import astor
 from silica.transformations import specialize_constants
-from silica.cfg.types import Block, BasicBlock, Yield, Branch
+from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock
 import tempfile
 from copy import deepcopy
 
@@ -16,6 +16,35 @@ class ControlFlowGraph(ast.NodeVisitor):
 
         self.visit(ast)
         self.bypass_conds()
+        self.promote_live_variables()
+        paths = self.collect_paths_between_yields()
+        self.render_paths_between_yields(paths)
+        exit()
+
+    def promote_live_variables(self):
+        for block in self.blocks:
+            if isinstance(block, BasicBlock):
+                for statement in block.statements:
+
+
+    def find_paths(self, block):
+        if isinstance(block, Yield):
+            return [[block]]
+        elif isinstance(block, BasicBlock):
+            return [[block] + path for path in self.find_paths(block.outgoing_edge[0])]
+        elif isinstance(block, Branch):
+            return [[block] + path for path in self.find_paths(block.true_edge)] + \
+                   [[block] + path for path in self.find_paths(block.false_edge)]
+        else:
+            raise NotImplementedError(type(block))
+
+    def collect_paths_between_yields(self):
+        paths = []
+        for block in self.blocks:
+            if isinstance(block, (Yield, HeadBlock)):
+                paths.extend([block] + path for path in self.find_paths(block.outgoing_edge[0]))
+        return paths
+
 
     def collect_constant_assigns(self, statements):
         constant_assigns = {}
@@ -111,8 +140,8 @@ class ControlFlowGraph(ast.NodeVisitor):
             end_then_block = self.curr_block
             if len(stmt.orelse) > 0:
                 self.curr_block = self.get_new_block()
-                self.add_edge(old_block, self.curr_block)
-                for sub_stmt in stmt.body:
+                self.add_false_edge(old_block, self.curr_block)
+                for sub_stmt in stmt.orelse:
                     self.process_stmt(sub_stmt)
                 end_else_block = self.curr_block
             self.curr_block = self.get_new_block()
@@ -179,7 +208,10 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.blocks = new_blocks
 
     def visit_FunctionDef(self, node):
+        self.head_block = HeadBlock()
+        self.blocks.append(self.head_block)
         self.curr_block = self.get_new_block()
+        self.add_edge(self.head_block, self.curr_block)
         for stmt in node.body:
             self.process_stmt(stmt)
         self.consolidate_empty_blocks()
@@ -195,9 +227,14 @@ class ControlFlowGraph(ast.NodeVisitor):
             elif isinstance(block, Yield):
                 label = "yield"
                 dot.node(str(id(block)), label.rstrip(), {"shape": "oval"})
-            else:
+            elif isinstance(block, BasicBlock):
                 label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
                 dot.node(str(id(block)), label.rstrip(), {"shape": "box"}) 
+            elif isinstance(block, HeadBlock):
+                label = "Initial"
+                dot.node(str(id(block)), label.rstrip(), {"shape": "doublecircle"}) 
+            else:
+                raise NotImplementedError(type(block))
         # for source, sink, label in self.edges:
             for sink, label in block.outgoing_edges:
                 dot.edge(str(id(block)), str(id(sink)), label)
@@ -207,3 +244,37 @@ class ControlFlowGraph(ast.NodeVisitor):
         dot.render(file_name, view=True)
         # print(file_name)
         # exit()
+
+    def render_paths_between_yields(self, paths):  # pragma: no cover
+        from graphviz import Digraph
+        dot = Digraph(name="top")
+        for i, path in enumerate(paths):
+            prev = None
+            for block in path:
+                if isinstance(block, Branch):
+                    label = "if " + astor.to_source(block.cond)
+                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "invhouse"})
+                elif isinstance(block, Yield):
+                    label = "yield {}".format(block.yield_id)
+                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "oval"})
+                elif isinstance(block, BasicBlock):
+                    label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
+                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "box"}) 
+                elif isinstance(block, HeadBlock):
+                    label = "Initial"
+                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doublecircle"}) 
+                else:
+                    raise NotImplementedError(type(block))
+                if prev is not None:
+                    if isinstance(prev, Branch):
+                        if block is prev.false_edge:
+                            label = "F"
+                        else:
+                            label = "T"
+                    else:
+                        label = ""
+                    dot.edge(str(i) + str(id(prev)), str(i) + str(id(block)), label)
+                prev = block
+
+        file_name = tempfile.mktemp("gv")
+        dot.render(file_name, view=True)
