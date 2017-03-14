@@ -23,9 +23,26 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.bypass_conds()
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
-        paths = self.append_state_info(paths, outputs)
-        self.render_paths_between_yields(paths)
-        exit()
+        paths, state_vars = self.append_state_info(paths, outputs)
+        source = "reg yield_state = -1;\n"
+        for var in state_vars:
+            if var != "yield_state":
+                source += "reg {};\n".format(var)
+        source += "always @(posedge CLKIN) if (clock_enable) begin\n"
+        for path in paths:
+            state = path[-1]
+            prog = "if ({}".format(astor.to_source(state.yield_state).rstrip())
+            if len(state.conds) > 0:
+                prog += " && "
+            prog += " && ".join(astor.to_source(cond) for cond in state.conds).rstrip()
+            prog += ") begin \n    "
+            prog += ";\n    ".join(astor.to_source(statement).rstrip() for statement in state.statements)
+            prog += ";\nend\n"
+            prog = prog.replace("~", "!")
+            prog = prog.replace(" = ", " <= ")
+            source += prog
+        source += "end\n"
+        self.source = source
 
     def append_state_info(self, paths, outputs):
         for path in paths:
@@ -40,7 +57,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                 if isinstance(block, Branch):
                     cond = block.cond
                     if path[i + 1] is block.false_edge:
-                        cond = ast.UnaryOp(ast.Not(), cond)
+                        cond = ast.UnaryOp(ast.Invert(), cond)
                     state.conds.append(cond)
             state.statements.append(ast.Assign([ast.Name("yield_state", ast.Store())], ast.Num(path[-1].yield_id)))
             path.append(state)
@@ -57,15 +74,16 @@ class ControlFlowGraph(ast.NodeVisitor):
                 if isinstance(block, BasicBlock):
                     for statement in block.statements:
                         assert isinstance(statement, ast.Assign)
-                        seen.add(statement.targets[0].id)
+                        if isinstance(statement.targets[0], ast.Name):
+                            seen.add(statement.targets[0].id)
                         state.statements.append(statement)
-            for output in outputs:
-                if output not in seen:
-                    state.statements.append(ast.Assign([ast.Name(output, ast.Store())], ast.Name(output + "_last", ast.Load())))
-            for state_var in state_vars:
-                if state_var not in seen:
-                    state.statements.append(ast.Assign([ast.Name(state_var, ast.Store())], ast.Name(state_var + "_last", ast.Load())))
-        return paths
+            # for output in outputs:
+            #     if output not in seen:
+            #         state.statements.append(ast.Assign([ast.Name(output, ast.Store())], ast.Name(output + "_last", ast.Load())))
+            # for state_var in state_vars:
+            #     if state_var not in seen:
+            #         state.statements.append(ast.Assign([ast.Name(state_var, ast.Store())], ast.Name(state_var + "_last", ast.Load())))
+        return paths, state_vars
 
 
     def promote_live_variables(self, paths):

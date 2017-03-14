@@ -44,27 +44,27 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
             tx = 1
             yield
 
-# @fsm(clock_enable=True)
-# def uart_receiver(rx    : Input, 
-#                   ready : Input, 
-#                   data  : Output[8], 
-#                   valid : Output):
-#     """
-#     yield from range(8) -> yield for 8 cycles
-#     """
-#     data = Reg(8)  # TODO: Can we just specify the output to be registered?
-#     while True:
-#         yield
-#         valid = 0
-#         if ready and not rx:
-#             yield from range(8)  # Wait half a baud period
-#             if not rx:           # Check if still low
-#                 for i in range(8):
-#                     yield from range(15)
-#                     data[i] = rx
-#                     yield
-#                 yield from range(15)
-#                 valid = rx  # end bit
-#                 yield
-#                 valid = 0
-#                 yield from range(14)
+@fsm(clock_enable=True)
+def uart_receiver(rx    : Input, 
+                  ready : Input, 
+                  data  : Output[8], 
+                  valid : Output):
+    """
+    yield from range(8) -> yield for 8 cycles
+    """
+    # data = Reg(8)  # TODO: Can we just specify the output to be registered?
+    while True:
+        yield
+        valid = 0
+        if ready & ~rx:
+            yield from range(8)  # Wait half a baud period
+            if ~rx:              # Check if still low
+                for i in range(8):
+                    yield from range(15)
+                    data[i] = rx
+                    yield
+                yield from range(15)
+                valid = rx  # end bit
+                yield
+                valid = 0
+                yield from range(14)
