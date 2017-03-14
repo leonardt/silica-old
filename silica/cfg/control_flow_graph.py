@@ -1,6 +1,7 @@
 import ast
 import astor
 from silica.transformations import specialize_constants, replace_symbols
+from silica.visitors import collect_names
 from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock, State
 import tempfile
 from copy import deepcopy
@@ -8,21 +9,25 @@ from copy import deepcopy
 
 class ControlFlowGraph(ast.NodeVisitor):
 
-    def __init__(self, ast):
+    def __init__(self, tree):
         super()
         self.blocks = []
         self.curr_block = None
         self.curr_yield_id = 0
 
-        self.visit(ast)
+        outputs = set()
+        for arg in tree.args.args:
+            if "Output" in astor.to_source(arg.annotation):
+                outputs.add(arg.arg)
+        self.visit(tree)
         self.bypass_conds()
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
-        paths = self.append_state_info(paths)
+        paths = self.append_state_info(paths, outputs)
         self.render_paths_between_yields(paths)
         exit()
 
-    def append_state_info(self, paths):
+    def append_state_info(self, paths, outputs):
         for path in paths:
             state = State()
             if isinstance(path[0], HeadBlock):
@@ -37,7 +42,29 @@ class ControlFlowGraph(ast.NodeVisitor):
                     if path[i + 1] is block.false_edge:
                         cond = ast.UnaryOp(ast.Not(), cond)
                     state.conds.append(cond)
+            state.statements.append(ast.Assign([ast.Name("yield_state", ast.Store())], ast.Num(path[-1].yield_id)))
             path.append(state)
+        state_vars = {"yield_state"}
+        for path in paths:
+            state = path[-1]
+            for cond in state.conds:
+                names = collect_names(cond)
+                state_vars.update(names)
+        for path in paths:
+            state = path[-1]
+            seen = {"yield_state"}
+            for block in path[:-1]:
+                if isinstance(block, BasicBlock):
+                    for statement in block.statements:
+                        assert isinstance(statement, ast.Assign)
+                        seen.add(statement.targets[0].id)
+                        state.statements.append(statement)
+            for output in outputs:
+                if output not in seen:
+                    state.statements.append(ast.Assign([ast.Name(output, ast.Store())], ast.Name(output + "_last", ast.Load())))
+            for state_var in state_vars:
+                if state_var not in seen:
+                    state.statements.append(ast.Assign([ast.Name(state_var, ast.Store())], ast.Name(state_var + "_last", ast.Load())))
         return paths
 
 
@@ -306,6 +333,8 @@ class ControlFlowGraph(ast.NodeVisitor):
                     if len(block.conds) > 0:
                         label += " && "
                     label += " && ".join(astor.to_source(cond) for cond in block.conds)
+                    label += "\n"
+                    label += "\n".join(astor.to_source(statement) for statement in block.statements)
                     dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doubleoctagon"})
                 else:
                     raise NotImplementedError(type(block))
