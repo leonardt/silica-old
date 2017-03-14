@@ -1,77 +1,82 @@
-module uart_receiver(input  rx, input  ready, output[7:0]  data, output  valid, input  clock_enable, input CLKIN);
-    reg [2:0] state = 1'b0;
-    reg [7:0] data;
-    reg[3:0]  ____x0;
-    reg[3:0]  ____x1;
-    reg[3:0]  ____x2;
-    reg[3:0]  ____x3;
-    reg[3:0]  i;
-    always @(posedge CLKIN) if (clock_enable) begin
-        case (state)
-            0: begin
-                valid = 1'b0;
-                if (!(rx) && ready) begin
-                    ____x0 = 1'b0;
-                    state = 1'b1;
-                end else begin
-                    state = 1'b0;
-                end
-            end
-            1: begin
-                ____x0 = ____x0 + 1'b1;
-                if (____x0 < 4'b1000) begin
-                    state = 1'b1;
-                end else begin
-                    if (!(rx)) begin
-                        i = 1'b0;
-                        ____x1 = 1'b0;
-                        state = 2'b10;
-                    end else begin
-                        state = 1'b0;
-                    end
-                end
-            end
-            2: begin
-                ____x1 = ____x1 + 1'b1;
-                if (____x1 < 4'b1111) begin
-                    state = 2'b10;
-                end else begin
-                    data[i] = rx;
-                    state = 2'b11;
-                end
-            end
-            3: begin
-                i = i + 1'b1;
-                if (i < 4'b1000) begin
-                    ____x1 = 1'b0;
-                    state = 2'b10;
-                end else begin
-                    ____x2 = 1'b0;
-                    state = 3'b100;
-                end
-            end
-            4: begin
-                ____x2 = ____x2 + 1'b1;
-                if (____x2 < 4'b1111) begin
-                    state = 3'b100;
-                end else begin
-                    valid = rx;
-                    state = 3'b101;
-                end
-            end
-            5: begin
-                valid = 1'b0;
-                ____x3 = 1'b0;
-                state = 3'b110;
-            end
-            6: begin
-                ____x3 = ____x3 + 1'b1;
-                if (____x3 < 4'b1110) begin
-                    state = 3'b110;
-                end else begin
-                    state = 1'b0;
-                end
-            end
-        endcase
-    end
+module uart_receiver(input rx, input ready, output reg[7:0] data, output reg valid, input clock_enable, input CLKIN);
+reg [16:0] yield_state;  // TODO: Infer state width
+initial begin
+    yield_state = 0;
+end
+reg [15:0]____x0;  // TODO: Infer state_var width
+reg [15:0]____x1;  // TODO: Infer state_var width
+reg [15:0]____x2;  // TODO: Infer state_var width
+reg [15:0]____x3;  // TODO: Infer state_var width
+reg [15:0]i;  // TODO: Infer state_var width
+always @(posedge CLKIN) if (clock_enable) begin
+if ((yield_state == 0)) begin 
+    yield_state <= 1;
+end
+if ((yield_state == 1) && (ready & !rx)) begin 
+    yield_state <= 2;
+    valid <= 0;
+    ____x0 <= 0;
+end
+if ((yield_state == 1) && (!(ready & !rx))) begin 
+    yield_state <= 1;
+    valid <= 0;
+end
+if ((yield_state == 2) && (____x0 + 1 < 8)) begin 
+    yield_state <= 2;
+    ____x0 <= ____x0 + 1;
+end
+if ((yield_state == 2) && (!(____x0 + 1 < 8))
+ && (!rx)) begin 
+    yield_state <= 3;
+    ____x0 <= ____x0 + 1;
+    i <= 0;
+    ____x1 <= 0;
+end
+if ((yield_state == 2) && (!(____x0 + 1 < 8))
+ && (!!rx)) begin 
+    yield_state <= 1;
+    ____x0 <= ____x0 + 1;
+end
+if ((yield_state == 3) && (____x1 + 1 < 15)) begin 
+    yield_state <= 3;
+    ____x1 <= ____x1 + 1;
+end
+if ((yield_state == 3) && (!(____x1 + 1 < 15))) begin 
+    yield_state <= 4;
+    ____x1 <= ____x1 + 1;
+    data[i] <= rx;
+end
+if ((yield_state == 4) && (i + 1 < 8)) begin 
+    yield_state <= 3;
+    i <= i + 1;
+    ____x1 <= 0;
+end
+if ((yield_state == 4) && (!(i + 1 < 8))) begin 
+    yield_state <= 5;
+    i <= i + 1;
+    ____x2 <= 0;
+end
+if ((yield_state == 5) && (____x2 + 1 < 15)) begin 
+    yield_state <= 5;
+    ____x2 <= ____x2 + 1;
+end
+if ((yield_state == 5) && (!(____x2 + 1 < 15))) begin 
+    yield_state <= 6;
+    ____x2 <= ____x2 + 1;
+    valid <= rx;
+end
+if ((yield_state == 6)) begin 
+    yield_state <= 7;
+    valid <= 0;
+    ____x3 <= 0;
+end
+if ((yield_state == 7) && (____x3 + 1 < 14)) begin 
+    yield_state <= 7;
+    ____x3 <= ____x3 + 1;
+end
+if ((yield_state == 7) && (!(____x3 + 1 < 14))) begin 
+    yield_state <= 1;
+    ____x3 <= ____x3 + 1;
+end
+end
 endmodule

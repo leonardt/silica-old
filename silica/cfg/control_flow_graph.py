@@ -29,9 +29,9 @@ class ControlFlowGraph(ast.NodeVisitor):
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
         paths, state_vars = self.append_state_info(paths, outputs, inputs)
-        source = "reg [15:0] yield_state;  // TODO: Infer state width\n"
+        source = "reg [16:0] yield_state;  // TODO: Infer state width\n"
         source += "initial begin\n    yield_state = 0;\nend\n"
-        for var in state_vars:
+        for var in sorted(state_vars):  # Sort for regression tests
             if var != "yield_state":
                 source += "reg [15:0]{};  // TODO: Infer state_var width\n".format(var)
         if clock_enable:

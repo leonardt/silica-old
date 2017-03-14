@@ -1,40 +1,53 @@
-module uart_transmitter(input[7:0]  data, input  valid, output  tx, output  ready, input  clock_enable, input CLKIN);
-    reg [2:0] state = 1'b0;
-    reg[3:0]  i;
-    always @(posedge CLKIN) if (clock_enable) begin
-        case (state)
-            0: begin
-                tx = 1'b1;
-                if (valid) begin
-                    ready = 1'b1;
-                    state = 1'b1;
-                end else begin
-                    state = 1'b0;
-                end
-            end
-            1: begin
-                ready = 1'b0;
-                tx = 1'b0;
-                state = 2'b10;
-            end
-            2: begin
-                i = 1'b0;
-                tx = data[i];
-                state = 2'b11;
-            end
-            3: begin
-                i = i + 1'b1;
-                if (i < 4'b1000) begin
-                    tx = data[i];
-                    state = 2'b11;
-                end else begin
-                    tx = 1'b1;
-                    state = 3'b100;
-                end
-            end
-            4: begin
-                state = 1'b0;
-            end
-        endcase
-    end
+module uart_transmitter(input[7:0] data, input valid, output reg tx, output reg ready, input clock_enable, input CLKIN);
+reg [16:0] yield_state;  // TODO: Infer state width
+initial begin
+    yield_state = 0;
+end
+reg [15:0]i;  // TODO: Infer state_var width
+always @(posedge CLKIN) if (clock_enable) begin
+if ((yield_state == 0) && valid) begin 
+    yield_state <= 1;
+    ready <= 1;
+end
+if ((yield_state == 0) && (!valid)) begin 
+    yield_state <= 5;
+    tx <= 1;
+end
+if ((yield_state == 1)) begin 
+    yield_state <= 2;
+    ready <= 0;
+    tx <= 0;
+end
+if ((yield_state == 2)) begin 
+    yield_state <= 3;
+    i <= 0;
+    tx <= data[0];
+end
+if ((yield_state == 3) && (i + 1 < 8)) begin 
+    yield_state <= 3;
+    i <= i + 1;
+    tx <= data[i + 1];
+end
+if ((yield_state == 3) && (!(i + 1 < 8))) begin 
+    yield_state <= 4;
+    i <= i + 1;
+    tx <= 1;
+end
+if ((yield_state == 4) && valid) begin 
+    yield_state <= 1;
+    ready <= 1;
+end
+if ((yield_state == 4) && (!valid)) begin 
+    yield_state <= 5;
+    tx <= 1;
+end
+if ((yield_state == 5) && valid) begin 
+    yield_state <= 1;
+    ready <= 1;
+end
+if ((yield_state == 5) && (!valid)) begin 
+    yield_state <= 5;
+    tx <= 1;
+end
+end
 endmodule
