@@ -1,6 +1,6 @@
 import ast
 import astor
-from silica.transformations import specialize_constants
+from silica.transformations import specialize_constants, replace_symbols
 from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock
 import tempfile
 from copy import deepcopy
@@ -16,25 +16,38 @@ class ControlFlowGraph(ast.NodeVisitor):
 
         self.visit(ast)
         self.bypass_conds()
-        self.promote_live_variables()
         paths = self.collect_paths_between_yields()
+        paths = self.promote_live_variables(paths)
         self.render_paths_between_yields(paths)
         exit()
 
-    def promote_live_variables(self):
-        for block in self.blocks:
-            if isinstance(block, BasicBlock):
-                for statement in block.statements:
+    def promote_live_variables(self, paths):
+        for path in paths:
+            symbol_table = {}
+            for block in path:
+                if isinstance(block, BasicBlock):
+                    new_statements = []
+                    for statement in block.statements:
+                        statement = replace_symbols(statement, symbol_table)
+                        if isinstance(statement, ast.Assign) and \
+                           len(statement.targets) == 1 and \
+                           isinstance(statement.targets[0], ast.Name):
+                            symbol_table[statement.targets[0].id] = statement.value
+                        new_statements.append(statement)
+                    block.statements = new_statements
+                elif isinstance(block, Branch):
+                    block.cond = replace_symbols(block.cond, symbol_table)
+        return paths
 
 
     def find_paths(self, block):
         if isinstance(block, Yield):
-            return [[block]]
+            return [[deepcopy(block)]]
         elif isinstance(block, BasicBlock):
-            return [[block] + path for path in self.find_paths(block.outgoing_edge[0])]
+            return [[deepcopy(block)] + path for path in self.find_paths(block.outgoing_edge[0])]
         elif isinstance(block, Branch):
-            return [[block] + path for path in self.find_paths(block.true_edge)] + \
-                   [[block] + path for path in self.find_paths(block.false_edge)]
+            return [[deepcopy(block)] + path for path in self.find_paths(block.true_edge)] + \
+                   [[deepcopy(block)] + path for path in self.find_paths(block.false_edge)]
         else:
             raise NotImplementedError(type(block))
 
