@@ -51,3 +51,4 @@ class State:
     def __init__(self):
         self.yield_state = None
         self.conds = []
+        self.statements = []
