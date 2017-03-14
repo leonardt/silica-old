@@ -46,3 +46,8 @@ class Branch(Block):
 
 class Yield(Block):
     pass
+
+class State:
+    def __init__(self):
+        self.yield_state = None
+        self.conds = []

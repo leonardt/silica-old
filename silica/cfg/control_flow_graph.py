@@ -1,7 +1,7 @@
 import ast
 import astor
 from silica.transformations import specialize_constants, replace_symbols
-from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock
+from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock, State
 import tempfile
 from copy import deepcopy
 
@@ -18,8 +18,28 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.bypass_conds()
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
+        paths = self.append_state_info(paths)
         self.render_paths_between_yields(paths)
         exit()
+
+    def append_state_info(self, paths):
+        for path in paths:
+            state = State()
+            if isinstance(path[0], HeadBlock):
+                yield_id = -1
+            else:
+                yield_id = path[0].yield_id
+            state.yield_state = ast.Compare(ast.Name("yield_state", ast.Load()), [ast.Eq()], [ast.Num(yield_id)],)
+            for i in range(1, len(path)):
+                block = path[i]
+                if isinstance(block, Branch):
+                    cond = block.cond
+                    if path[i + 1] is block.false_edge:
+                        cond = ast.UnaryOp(ast.Not(), cond)
+                    state.conds.append(cond)
+            path.append(state)
+        return paths
+
 
     def promote_live_variables(self, paths):
         for path in paths:
@@ -281,6 +301,12 @@ class ControlFlowGraph(ast.NodeVisitor):
                 elif isinstance(block, HeadBlock):
                     label = "Initial"
                     dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doublecircle"}) 
+                elif isinstance(block, State):
+                    label = "{}".format(astor.to_source(block.yield_state).rstrip())
+                    if len(block.conds) > 0:
+                        label += " && "
+                    label += " && ".join(astor.to_source(cond) for cond in block.conds)
+                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doubleoctagon"})
                 else:
                     raise NotImplementedError(type(block))
                 if prev is not None:
