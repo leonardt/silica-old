@@ -3,24 +3,24 @@ from silica import fsm, Input, Output
 BAUD_RATE  = 28800
 CLOCK_RATE = int(12e6)  # 12 mhz
 
-# @fsm
-# def baud_rx(out : Output):
-#     while True:
-#         yield
-#         out = 0
-#         for i in range(0, CLOCK_RATE // (BAUD_RATE * 16) - 2):
-#             yield
-#         out = 1
-# 
-# 
-# @fsm
-# def baud_tx(out : Output):
-#     while True:
-#         yield
-#         out = 0
-#         for i in range(0, (CLOCK_RATE // BAUD_RATE) - 2):
-#             yield
-#         out = 1
+@fsm
+def baud_rx(out : Output):
+    while True:
+        yield
+        out = 0
+        for i in range(0, CLOCK_RATE // (BAUD_RATE * 16) - 2):
+            yield
+        out = 1
+
+
+@fsm
+def baud_tx(out : Output):
+    while True:
+        yield
+        out = 0
+        for i in range(0, (CLOCK_RATE // BAUD_RATE) - 2):
+            yield
+        out = 1
 
 
 

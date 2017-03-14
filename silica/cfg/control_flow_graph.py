@@ -9,7 +9,7 @@ from copy import deepcopy
 
 class ControlFlowGraph(ast.NodeVisitor):
 
-    def __init__(self, tree):
+    def __init__(self, tree, clock_enable):
         super()
         self.blocks = []
         self.curr_block = None
@@ -29,12 +29,15 @@ class ControlFlowGraph(ast.NodeVisitor):
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
         paths, state_vars = self.append_state_info(paths, outputs, inputs)
-        source = "reg [8:0] yield_state;  // TODO: Infer state width\n"
+        source = "reg [15:0] yield_state;  // TODO: Infer state width\n"
         source += "initial begin\n    yield_state = 0;\nend\n"
         for var in state_vars:
             if var != "yield_state":
-                source += "reg [8:0]{};  // TODO: Infer state_var width\n".format(var)
-        source += "always @(posedge CLKIN) if (clock_enable) begin\n"
+                source += "reg [15:0]{};  // TODO: Infer state_var width\n".format(var)
+        if clock_enable:
+            source += "always @(posedge CLKIN) if (clock_enable) begin\n"
+        else:
+            source += "always @(posedge CLKIN) begin\n"
         for path in paths:
             state = path[-1]
             prog = "if ({}".format(astor.to_source(state.yield_state).rstrip())
