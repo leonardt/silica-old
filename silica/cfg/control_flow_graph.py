@@ -46,8 +46,13 @@ class ControlFlowGraph(ast.NodeVisitor):
         elif isinstance(block, BasicBlock):
             return [[deepcopy(block)] + path for path in self.find_paths(block.outgoing_edge[0])]
         elif isinstance(block, Branch):
-            return [[deepcopy(block)] + path for path in self.find_paths(block.true_edge)] + \
-                   [[deepcopy(block)] + path for path in self.find_paths(block.false_edge)]
+            true_paths = [[deepcopy(block)] + path for path in self.find_paths(block.true_edge)]
+            false_paths = [[deepcopy(block)] + path for path in self.find_paths(block.false_edge)]
+            for path in true_paths:
+                path[0].true_edge = path[1]
+            for path in false_paths:
+                path[0].false_edge = path[1]
+            return true_paths + false_paths
         else:
             raise NotImplementedError(type(block))
 
