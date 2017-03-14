@@ -13,21 +13,27 @@ class ControlFlowGraph(ast.NodeVisitor):
         super()
         self.blocks = []
         self.curr_block = None
-        self.curr_yield_id = 0
+        self.curr_yield_id = 1
 
         outputs = set()
+        inputs = set()
         for arg in tree.args.args:
             if "Output" in astor.to_source(arg.annotation):
                 outputs.add(arg.arg)
+            elif "Input" in astor.to_source(arg.annotation):
+                inputs.add(arg.arg)
+            else:
+                assert False
         self.visit(tree)
         self.bypass_conds()
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
-        paths, state_vars = self.append_state_info(paths, outputs)
-        source = "reg yield_state = -1;\n"
+        paths, state_vars = self.append_state_info(paths, outputs, inputs)
+        source = "reg [8:0] yield_state;  // TODO: Infer state width\n"
+        source += "initial begin\n    yield_state = 0;\nend\n"
         for var in state_vars:
             if var != "yield_state":
-                source += "reg {};\n".format(var)
+                source += "reg [8:0]{};  // TODO: Infer state_var width\n".format(var)
         source += "always @(posedge CLKIN) if (clock_enable) begin\n"
         for path in paths:
             state = path[-1]
@@ -44,11 +50,11 @@ class ControlFlowGraph(ast.NodeVisitor):
         source += "end\n"
         self.source = source
 
-    def append_state_info(self, paths, outputs):
+    def append_state_info(self, paths, outputs, inputs):
         for path in paths:
             state = State()
             if isinstance(path[0], HeadBlock):
-                yield_id = -1
+                yield_id = 0
             else:
                 yield_id = path[0].yield_id
             state.yield_state = ast.Compare(ast.Name("yield_state", ast.Load()), [ast.Eq()], [ast.Num(yield_id)],)
@@ -66,7 +72,10 @@ class ControlFlowGraph(ast.NodeVisitor):
             state = path[-1]
             for cond in state.conds:
                 names = collect_names(cond)
-                state_vars.update(names)
+                for name in names:
+                    if name not in outputs and \
+                       name not in inputs:
+                        state_vars.update(names)
         for path in paths:
             state = path[-1]
             seen = {"yield_state"}
