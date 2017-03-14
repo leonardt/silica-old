@@ -1,7 +1,6 @@
 `include "uart_transmitter.v"
 `include "baud_tx.v"
 `include "baud_rx.v"
-`include "uart_control.v"
 `include "uart_receiver.v"
 `include "aFifo.v"
 module main (input  CLKIN, output TX, input RX);

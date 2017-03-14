@@ -51,7 +51,36 @@ class FSM:
         if render_cfg:
             cfg.render()  # pragma: no cover
         if backend == "verilog":
-            tree = verilog.compile(func_name, tree, cfg, local_vars, clock_enable, file_dir)
+            # tree = verilog.compile(func_name, tree, cfg, local_vars, clock_enable, file_dir)
+            params = []
+            for arg in tree.args.args:
+                if isinstance(arg.annotation, ast.Subscript):
+                    assert isinstance(arg.annotation.slice.value, ast.Num)
+                    assert isinstance(arg.annotation.value, ast.Name)
+                    # typ = Subscript(Symbol(arg.annotation.value.id.lower()), 
+                    #                 Slice(Constant(arg.annotation.slice.value.n - 1), Constant(0)))
+                    typ = arg.annotation.value.id.lower()
+                    if "output" in typ:
+                        typ += " reg"
+                    typ += "[{}:0]".format(arg.annotation.slice.value.n - 1)
+                else:
+                    # typ = Symbol(arg.annotation.id.lower())
+                    typ = arg.annotation.id.lower()
+                    if "output" in typ:
+                        typ += " reg"
+                # params.append(Declaration(typ, Symbol(arg.arg)))
+                params.append(typ + " " + arg.arg)
+            if clock_enable:
+                # params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
+                params.append("input clock_enable")
+            params.append("input CLKIN")
+            source = ""
+            source += "module {}({});\n".format(func_name, ", ".join(params))
+            source += cfg.source
+            source += "endmodule"
+            with open(os.path.join(file_dir, func_name + ".v"), "w") as f:
+                f.write(source)
+
         else:
             raise NotImplementedError(backend)  # pragma: no cover
 
