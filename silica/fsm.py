@@ -47,7 +47,7 @@ class FSM:
         type_check(tree)
 
         local_vars = list(sorted(loopvars))
-        cfg = ControlFlowGraph(tree)
+        cfg = ControlFlowGraph(tree, clock_enable)
         if render_cfg:
             cfg.render()  # pragma: no cover
         if backend == "verilog":
