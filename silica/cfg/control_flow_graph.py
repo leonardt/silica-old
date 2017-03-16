@@ -35,7 +35,7 @@ class ControlFlowGraph(ast.NodeVisitor):
         for var in sorted(state_vars):  # Sort for regression tests
             if var != "yield_state":
                 width = local_widths[var]
-                source += "reg [{}:0] {};\n".format(width, var)
+                source += "reg [{}:0] {};\n".format(width - 1, var)
         if clock_enable:
             source += "always @(posedge CLKIN) if (clock_enable) begin\n"
         else:

@@ -28,7 +28,7 @@ class ForLoopDesugarer(ast.NodeTransformer):
             else:
                 start = node.iter.args[0]
                 end = node.iter.args[1]
-            width = end.n.bit_length()
+            width = (end.n - 1).bit_length()
             self.loopvars.add((node.target.id, width))
             return [
                 ast.Assign([node.target], start),
