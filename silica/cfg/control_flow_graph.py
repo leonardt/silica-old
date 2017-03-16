@@ -51,7 +51,8 @@ class ControlFlowGraph(ast.NodeVisitor):
             prog += ";\nend\n"
             prog = prog.replace("~", "!")
             prog = prog.replace(" = ", " <= ")
-            source += prog
+            prog = "\n    ".join(prog.splitlines())
+            source += "    " + prog + "\n"
         source += "end\n"
         self.source = source
 
