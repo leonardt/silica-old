@@ -1,13 +1,13 @@
 module uart_receiver(input rx, input ready, output reg[7:0] data, output reg valid, input clock_enable, input CLKIN);
-reg [16:0] yield_state;  // TODO: Infer state width
+reg [3:0] yield_state;
 initial begin
     yield_state = 0;
 end
-reg [15:0]____x0;  // TODO: Infer state_var width
-reg [15:0]____x1;  // TODO: Infer state_var width
-reg [15:0]____x2;  // TODO: Infer state_var width
-reg [15:0]____x3;  // TODO: Infer state_var width
-reg [15:0]i;  // TODO: Infer state_var width
+reg [4:0] ____x0;
+reg [4:0] ____x1;
+reg [4:0] ____x2;
+reg [4:0] ____x3;
+reg [4:0] i;
 always @(posedge CLKIN) if (clock_enable) begin
 if ((yield_state == 0)) begin 
     yield_state <= 1;

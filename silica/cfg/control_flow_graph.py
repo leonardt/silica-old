@@ -8,9 +8,9 @@ from copy import deepcopy
 
 
 class ControlFlowGraph(ast.NodeVisitor):
-
-    def __init__(self, tree, clock_enable):
+    def __init__(self, tree, clock_enable, local_vars):
         super()
+        local_widths = {name: width for name, width in local_vars}
         self.blocks = []
         self.curr_block = None
         self.curr_yield_id = 1
@@ -29,11 +29,13 @@ class ControlFlowGraph(ast.NodeVisitor):
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
         paths, state_vars = self.append_state_info(paths, outputs, inputs)
-        source = "reg [16:0] yield_state;  // TODO: Infer state width\n"
+        state_width = (len(paths) - 1).bit_length()
+        source = "reg [{}:0] yield_state;\n".format(state_width - 1)
         source += "initial begin\n    yield_state = 0;\nend\n"
         for var in sorted(state_vars):  # Sort for regression tests
             if var != "yield_state":
-                source += "reg [15:0]{};  // TODO: Infer state_var width\n".format(var)
+                width = local_widths[var]
+                source += "reg [{}:0] {};\n".format(width, var)
         if clock_enable:
             source += "always @(posedge CLKIN) if (clock_enable) begin\n"
         else:
