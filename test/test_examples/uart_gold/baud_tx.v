@@ -1,9 +1,9 @@
 module baud_tx(output reg out, input CLKIN);
-reg [16:0] yield_state;  // TODO: Infer state width
+reg [1:0] yield_state;
 initial begin
     yield_state = 0;
 end
-reg [15:0]i;  // TODO: Infer state_var width
+reg [9:0] i;
 always @(posedge CLKIN) begin
 if ((yield_state == 0)) begin 
     yield_state <= 1;

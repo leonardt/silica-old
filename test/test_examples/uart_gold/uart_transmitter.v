@@ -1,9 +1,9 @@
 module uart_transmitter(input[7:0] data, input valid, output reg tx, output reg ready, input clock_enable, input CLKIN);
-reg [16:0] yield_state;  // TODO: Infer state width
+reg [3:0] yield_state;
 initial begin
     yield_state = 0;
 end
-reg [15:0]i;  // TODO: Infer state_var width
+reg [4:0] i;
 always @(posedge CLKIN) if (clock_enable) begin
 if ((yield_state == 0) && valid) begin 
     yield_state <= 1;
