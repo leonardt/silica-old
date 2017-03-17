@@ -51,6 +51,7 @@ class ControlFlowGraph(ast.NodeVisitor):
             prog += ";\nend\n"
             prog = prog.replace("~", "!")
             prog = prog.replace(" = ", " <= ")
+            prog = prog.replace("and", "&&")
             prog = "\n    ".join(prog.splitlines())
             source += "    " + prog + "\n"
         source += "end\n"
@@ -108,7 +109,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                 if isinstance(block, BasicBlock):
                     new_statements = []
                     for statement in block.statements:
-                        statement = replace_symbols(statement, symbol_table)
+                        statement = replace_symbols(statement, symbol_table, ctx=ast.Load)
                         if isinstance(statement, ast.Assign) and \
                            len(statement.targets) == 1 and \
                            isinstance(statement.targets[0], ast.Name):
@@ -116,7 +117,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                         new_statements.append(statement)
                     block.statements = new_statements
                 elif isinstance(block, Branch):
-                    block.cond = replace_symbols(block.cond, symbol_table)
+                    block.cond = replace_symbols(block.cond, symbol_table, ctx=ast.Load)
         return paths
 
 

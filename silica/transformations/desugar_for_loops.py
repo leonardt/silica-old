@@ -31,10 +31,10 @@ class ForLoopDesugarer(ast.NodeTransformer):
             width = (end.n - 1).bit_length()
             self.loopvars.add((node.target.id, width))
             return [
-                ast.Assign([node.target], start),
-                ast.While(ast.BinOp(node.target, ast.Lt(), end),
+                ast.Assign([ast.Name(node.target.id, ast.Store())], start),
+                ast.While(ast.BinOp(ast.Name(node.target.id, ast.Load()), ast.Lt(), end),
                     node.body + [
-                        ast.Assign([node.target], ast.BinOp(
+                        ast.Assign([ast.Name(node.target.id, ast.Store())], ast.BinOp(
                             node.target, ast.Add(), incr))
                     ], [])
             ]
