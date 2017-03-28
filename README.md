@@ -33,7 +33,7 @@ Install Silica as a local Python package
 pip install -e .
 ```
 
-Running the Test Suite
+Run the Test Suite
 ```shell
 py.test --cov=silica --cov-report term-missing test
 ```
