@@ -22,16 +22,13 @@ mkvirtualenv --python=python3 silica
 
 Install package dependencies
 ```shell
-pip install -r requirements.txt
+pip install -r dev-requirements.txt
 ```
 
 Install a local working copy of Silica
 ```shell
 pip install -e .
 ```
-
-###  Optional requirements
-* graphviz (`pip install graphviz`) to render control flow graphs
 
 ## Running the Test Suite
 ```shell
