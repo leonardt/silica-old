@@ -22,6 +22,7 @@ is useful tool for managing project specific Python environments.
 pip install virtualenvwrapper
 mkvirtualenv --python=python3 silica
 ```
+Now you can use `workon silica` to activate the environment and `deactivate` to deactivate.
 
 Install Python dependencies
 ```shell
