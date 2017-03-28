@@ -17,8 +17,7 @@ brew install python3 verilator
 ```
 
 [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
-is useful tool for managing project specific Python environments.  Setup an
-environment with a Python version 3.5 or greater.
+is useful tool for managing project specific Python environments.
 ```shell
 pip install virtualenvwrapper
 mkvirtualenv --python=python3 silica
