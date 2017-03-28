@@ -7,11 +7,16 @@ A language embedded in Python for building Finite State Machines in hardware.
 Requires Python 3.5+
 
 # Development Setup
+## Ubuntu
 ```shell
-sudo apt install python3  # Ubuntu 16.04
-brew install python3      # MacOS/Homebrew
+sudo apt install python3 verilator
+```
+## MacOS/Homebrew
+```shell
+brew install python3 verilator
 ```
 
+## Virtualenvwrapper (Optional)
 [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
 is useful tool for managing project specific Python environments.  Setup an
 environment with a Python version 3.5 or greater.
@@ -20,12 +25,12 @@ pip install virtualenvwrapper
 mkvirtualenv --python=python3 silica
 ```
 
-Install package dependencies
+## Python dependencies
 ```shell
 pip install -r dev-requirements.txt
 ```
 
-Install a local working copy of Silica
+## Install Silica as a local Python package
 ```shell
 pip install -e .
 ```
