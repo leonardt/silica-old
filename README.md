@@ -8,9 +8,9 @@ Requires Python 3.5+
 
 # Development Setup
 ```shell
-pip3 install -r requirements.txt
-pip3 install pytest # Testing infrastructure
-pip3 install -e .   # Install local working copy
+pip install -r requirements.txt
+pip install pytest # Testing infrastructure
+pip install -e .   # Install local working copy
 ```
 
 ###  Optional requirements
