@@ -8,9 +8,26 @@ Requires Python 3.5+
 
 # Development Setup
 ```shell
+sudo apt install python3  # Ubuntu 16.04
+brew install python3      # MacOS/Homebrew
+```
+
+[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
+is useful tool for managing project specific Python environments.  Setup an
+environment with a Python version 3.5 or greater.
+```shell
+pip install virtualenvwrapper
+mkvirtualenv --python=python3 silica
+```
+
+Install package dependencies
+```shell
 pip install -r requirements.txt
-pip install pytest # Testing infrastructure
-pip install -e .   # Install local working copy
+```
+
+Install a local working copy of Silica
+```shell
+pip install -e .
 ```
 
 ###  Optional requirements
