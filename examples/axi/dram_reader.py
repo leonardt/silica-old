@@ -93,4 +93,40 @@ def dram_reader(
     m_axi_arlen   = 0b1111
     m_axi_arsize  = 0b011
     m_axi_arburst = 0b1
+    
+    addr_ready = wire  # TODO: Figure out this wire logic
+
+    @fsm
+    def addr_logic():
+        while True:
+            if config_valid:
+                addr_ready = 0
+                m_axi_araddr = config_start_addr
+                yield
+                for _ in range(config_nbytes[8:32]):
+                    m_axi_araddr += 128
+                    yield
+                addr_ready = 1
+
+    read_ready = wire  # TODO: Figure out this wire logic
+
+    @fsm 
+    def read_logic():
+        while True:
+            if config_valid:
+                read_ready = 0
+                count = 0
+                data_valid = m_axi_rvalid
+                for i in range(start=0, stop=config_nbytes[8:32] // 128, step=8):  # Round to nearest 128 bytes
+                    while not (m_axi_rvalid and data_ready_downstream):
+                        yield
+                data_valid = 0
+                read_ready = 1
+
+
+    data = m_axi_rdata
+    config_ready = read_ready and addr_ready
+
+
+                    
 

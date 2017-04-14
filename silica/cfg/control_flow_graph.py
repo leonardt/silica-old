@@ -28,7 +28,9 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.bypass_conds()
         paths = self.collect_paths_between_yields()
         paths = self.promote_live_variables(paths)
+        self.render_paths_between_yields(paths)
         paths, state_vars = self.append_state_info(paths, outputs, inputs)
+        self.render_paths_between_yields([path[-1:] for path in paths])
         state_width = (len(paths) - 1).bit_length()
         source = "reg [{}:0] yield_state;\n".format(state_width - 1)
         source += "initial begin\n    yield_state = 0;\nend\n"
