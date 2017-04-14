@@ -103,7 +103,7 @@ def dram_reader(
                 addr_ready = 0
                 m_axi_araddr = config_start_addr
                 yield
-                for _ in range(config_nbytes[8:32]):
+                for _ in range(config_nbytes // 128):  # TODO: Is this right?
                     m_axi_araddr += 128
                     yield
                 addr_ready = 1
@@ -117,7 +117,7 @@ def dram_reader(
                 read_ready = 0
                 count = 0
                 data_valid = m_axi_rvalid
-                for i in range(start=0, stop=config_nbytes[8:32] // 128, step=8):  # Round to nearest 128 bytes
+                for i in range(start=0, stop=config_nbytes // 128, step=8):  # Round to nearest 128 bytes
                     while not (m_axi_rvalid and data_ready_downstream):
                         yield
                 data_valid = 0
