@@ -9,6 +9,7 @@ before_install:
 install: 
     - sudo apt-get install verilator
     - "pip install -r requirements.txt"
+    - "pip install -r dev-requirements.txt"
     - "pip install codecov"
 
 script: 
