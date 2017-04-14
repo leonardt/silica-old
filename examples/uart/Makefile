@@ -14,6 +14,11 @@ $(NAME).bin: $(NAME).v $(PCF) $(NAME).py
 upload: $(NAME).bin
 	iceprog $(NAME).bin
 
+upload_mac: $(NAME).bin
+	sudo kextunload -b com.apple.driver.AppleUSBFTDI
+	iceprog $(NAME).bin
+	sudo kextload -b com.apple.driver.AppleUSBFTDI
+
 sim_tx: sim_tx.cpp
 	verilator -Wall --cc uart_transmitter.v --exe sim_tx.cpp
 	cd obj_dir && make -j -f Vuart_transmitter.mk Vuart_transmitter
