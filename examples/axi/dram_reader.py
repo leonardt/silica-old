@@ -1,7 +1,7 @@
 from silica import fsm, Input, Output
+from mantle import circuit
 
-
-@fsm(reset=True)
+@circuit
 def dram_reader(
         # AXI port
         m_axi_araddr  : Output[32],
