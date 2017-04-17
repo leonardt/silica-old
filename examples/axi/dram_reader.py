@@ -1,31 +1,32 @@
-from silica import fsm, Input, Output
-from mantle import circuit
+from magma import *
+from mantle import *
+from silica import fsm
 
 @circuit
 def dram_reader(
         # AXI port
-        m_axi_araddr  : Output[32],
-        m_axi_arready : Input,
-        m_axi_arvalid : Output,
-        m_axi_rdata   : Input[64],
-        m_axi_rready  : Output,
-        m_axi_rresp   : Input[2],
-        m_axi_rvalid  : Input,
-        m_axi_rlast   : Input,
-        m_axi_arlen   : Output[4],
-        m_axi_arsize  : Output[3],
-        m_axi_arburst : Output[2],
+        m_axi_araddr  : Out(Array(32, Bit)),
+        m_axi_arready : In(Bit),
+        m_axi_arvalid : Out(Bit),
+        m_axi_rdata   : In(Array(64, Bit)),
+        m_axi_rready  : Out(Bit),
+        m_axi_rresp   : In(Array(2, Bit)),
+        m_axi_rvalid  : In(Bit),
+        m_axi_rlast   : In(Bit),
+        m_axi_arlen   : Out(Array(4, Bit)),
+        m_axi_arsize  : Out(Array(3, Bit)),
+        m_axi_arburst : Out(Array(2, Bit)),
 
         # Control config
-        config_valid      : Input,
-        config_read       : Ouput,
-        config_start_addr : Input[32],
-        config_nbytes     : Input[32],
+        config_valid      : In(Bit),
+        config_read       : Out(Bit),
+        config_start_addr : In(Array(32, Bit)),
+        config_nbytes     : In(Array(32, Bit)),
 
         # Ram port
-        data_ready_downstream : Input,
-        data_valid            : Output,
-        data                  : Output[64]
+        data_ready_downstream : In(Bit),
+        data_valid            : Out(Bit),
+        data                  : Out(Array(64, Bit))
     ):
     """
     Documentation pulled from
