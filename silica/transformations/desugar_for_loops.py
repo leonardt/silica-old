@@ -35,7 +35,7 @@ class ForLoopDesugarer(ast.NodeTransformer):
                 ast.While(ast.BinOp(ast.Name(node.target.id, ast.Load()), ast.Lt(), end),
                     node.body + [
                         ast.Assign([ast.Name(node.target.id, ast.Store())], ast.BinOp(
-                            node.target, ast.Add(), incr))
+                            ast.Name(node.target.id, ast.Load()), ast.Add(), incr))
                     ], [])
             ]
         else:  # pragma: no cover

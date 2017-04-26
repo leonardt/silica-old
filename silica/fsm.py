@@ -1,3 +1,5 @@
+import magma
+from mantle.expressions import process_circuit_ast
 import copy
 import ast
 import astor
@@ -8,7 +10,8 @@ import silica.backend.verilog as verilog
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
-    specialize_constants
+    specialize_constants, replace_symbols
+from silica.visitors import collect_names
 from silica.type_checker import type_check
 import os
 from copy import deepcopy
@@ -20,6 +23,22 @@ def get_global_vars_for_func(fn):
     we are interested in name == __globals__
     """
     return [x for x in inspect.getmembers(fn) if x[0] == "__globals__"][0][1]
+
+
+def round_to_next_power_of_two(x):
+    return 1<<(x-1).bit_length()
+
+
+class Source:
+    def __init__(self):
+        self._source = ""
+
+    def add_line(self, line):
+        self._source += line + "\n"
+
+    def __str__(self):
+        return self._source.rstrip()
+
 
 class FSM:
     def __init__(self, f, backend, clock_enable=False, render_cfg=False):
@@ -44,45 +63,70 @@ class FSM:
         local_vars.update(loopvars)
         tree, loopvars = desugar_for_loops(tree)
         local_vars.update(loopvars)
-        type_check(tree)
+        # Defer to magma type checking for now
+        # type_check(tree)
 
         local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree, clock_enable, local_vars)
         if render_cfg:
             cfg.render()  # pragma: no cover
-        if backend == "verilog":
-            # tree = verilog.compile(func_name, tree, cfg, local_vars, clock_enable, file_dir)
-            params = []
-            for arg in tree.args.args:
-                if isinstance(arg.annotation, ast.Subscript):
-                    assert isinstance(arg.annotation.slice.value, ast.Num)
-                    assert isinstance(arg.annotation.value, ast.Name)
-                    # typ = Subscript(Symbol(arg.annotation.value.id.lower()), 
-                    #                 Slice(Constant(arg.annotation.slice.value.n - 1), Constant(0)))
-                    typ = arg.annotation.value.id.lower()
-                    if "output" in typ:
-                        typ += " reg"
-                    typ += "[{}:0]".format(arg.annotation.slice.value.n - 1)
-                else:
-                    # typ = Symbol(arg.annotation.id.lower())
-                    typ = arg.annotation.id.lower()
-                    if "output" in typ:
-                        typ += " reg"
-                # params.append(Declaration(typ, Symbol(arg.arg)))
-                params.append(typ + " " + arg.arg)
-            if clock_enable:
-                # params.append(Declaration(Symbol("input"), Symbol("clock_enable")))
-                params.append("input clock_enable")
-            params.append("input CLKIN")
-            source = ""
-            source += "module {}({});\n".format(func_name, ", ".join(params))
-            source += cfg.source
-            source += "endmodule"
-            with open(os.path.join(file_dir, func_name + ".v"), "w") as f:
-                f.write(source)
+        source = Source()
+        num_states = len(cfg.paths)
+        state_width = (num_states - 1).bit_length()
+        source.add_line("yield_state = Register({})".format(state_width))
+        mux_height = round_to_next_power_of_two(num_states)
+        source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
+        source.add_line("wire(yield_state.I, yield_state_mux.O)")
+        source.add_line("wire(yield_state.O, yield_state_mux.S[:{}])".format(state_width))
+        for i in range(num_states):
+            # The final statement in the path is the next yield (skip the
+            # state_info node which is the actual last item in the list
+            # TODO: There should be a better interface, probably a Paths object
+            next_state = cfg.paths[i][-2].yield_id
+            source.add_line("wire(yield_state_mux.I{i}, int2seq({next_state}, {width}))".format(i=i, next_state=next_state, width=state_width))
 
-        else:
-            raise NotImplementedError(backend)  # pragma: no cover
+        def process(var):
+            source.add_line("{}_reg = Register({})".format(var, width))
+            source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, state_width))
+            source.add_line("wire({}_reg.I, {}_mux.O)".format(var, var))
+            source.add_line("wire({}_reg.O, {}_mux.S[:{}])".format(var, var, state_width))
+            for i in range(num_states):
+                state_info = cfg.paths[i][-1]
+                result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
+                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
+                if len(result) == 0:
+                    source.add_line("wire({var}.O, {var}_mux_.I[{i}])".format(var=var, i=i))
+                else:
+                    statement = result[0]
+                    symbol_table = {
+                        var: ast.Name(var + "_state_{}".format(i), ast.Store())
+                    }
+                    statement = replace_symbols(statement, symbol_table, ast.Store)
+                    source.add_line(astor.to_source(statement).rstrip())
+                    source.add_line("wire({var}_state_{i}, {var}_mux.I{i})".format(var=var, i=i))
+        for var, width in local_vars:
+            source.add_line("{} = Register({})".format(var, width))
+            process(var)
+
+        for arg in tree.args.args:
+            var = arg.arg
+            _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
+            if _type.isoutput():
+                if isinstance(_type, magma.ArrayType):
+                    width = _type.N
+                elif isinstance(_type, magma.BitType):
+                    width = 1
+                else:
+                    raise NotImplementedError(type(_type))
+                process(var)
+        tree.body = ast.parse(str(source)).body
+        tree.decorator_list = [ast.Name("circuit", ast.Load())]
+        print(astor.to_source(tree))
+        source, _ = process_circuit_ast(tree)
+        prog = "from magma import *\nfrom mantle import *\n" + source
+        print(source)
+        exec(prog)
+        exit(1)
 
 
 def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
@@ -93,5 +137,3 @@ def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
             else:
                 return FSM(fn, mode_or_fn, clock_enable, render_cfg)
         return wrapped
-    return FSM(mode_or_fn, "verilog", clock_enable, render_cfg)
-
