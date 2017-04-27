@@ -40,8 +40,9 @@ class Source:
         return self._source.rstrip()
 
 
-class FSM:
-    def __init__(self, f, backend, clock_enable=False, render_cfg=False):
+# class FSM:
+#     def __init__(self, f, backend, clock_enable=False, render_cfg=False):
+def FSM(f, backend, clock_enable=False, render_cfg=False):
         # TODO: Instead of global namespace for function, should get the
         # current frame of the function definition (needed to support higher
         # order definitions with scoped/closure variables)
@@ -73,7 +74,9 @@ class FSM:
         source = Source()
         num_states = len(cfg.paths)
         state_width = (num_states - 1).bit_length()
-        source.add_line("yield_state = Register({})".format(state_width))
+        source.add_line("yield_state = Register({}, ce={})".format(state_width, clock_enable))
+        if clock_enable:
+            source.add_line("wire(yield_state.CE, {}.CE)".format(func_name))
         mux_height = round_to_next_power_of_two(num_states)
         source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
         source.add_line("wire(yield_state.I, yield_state_mux.O)")
@@ -85,28 +88,30 @@ class FSM:
             next_state = cfg.paths[i][-2].yield_id
             source.add_line("wire(yield_state_mux.I{i}, int2seq({next_state}, {width}))".format(i=i, next_state=next_state, width=state_width))
 
-        def process(var):
-            source.add_line("{}_reg = Register({})".format(var, width))
-            source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, state_width))
-            source.add_line("wire({}_reg.I, {}_mux.O)".format(var, var))
-            source.add_line("wire({}_reg.O, {}_mux.S[:{}])".format(var, var, state_width))
+        def process(var, width):
+            source.add_line("{} = Register({}, ce={})".format(var, width, clock_enable))
+            if clock_enable:
+                source.add_line("wire({}.CE, {}.CE)".format(var, func_name))
+            source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, width))
+            source.add_line("wire({}.I, {}_mux.O)".format(var, var))
+            source.add_line("wire(yield_state.O, {}_mux.S[:{}])".format(var, state_width))
             for i in range(num_states):
                 state_info = cfg.paths[i][-1]
                 result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
                 assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
                 if len(result) == 0:
-                    source.add_line("wire({var}.O, {var}_mux_.I[{i}])".format(var=var, i=i))
+                    source.add_line("wire({var}.O, {var}_mux.I{i})".format(var=var, i=i))
                 else:
                     statement = result[0]
                     symbol_table = {
-                        var: ast.Name(var + "_state_{}".format(i), ast.Store())
+                        # var: ast.Name(var + "_state_{}".format(i), ast.Store())
+                        var: ast.Name(var + "_mux.I{}".format(i), ast.Store())
                     }
                     statement = replace_symbols(statement, symbol_table, ast.Store)
                     source.add_line(astor.to_source(statement).rstrip())
-                    source.add_line("wire({var}_state_{i}, {var}_mux.I{i})".format(var=var, i=i))
+                    # source.add_line("wire({var}_state_{i}, {var}_mux.I{i})".format(var=var, i=i))
         for var, width in local_vars:
-            source.add_line("{} = Register({})".format(var, width))
-            process(var)
+            process(var, width)
 
         for arg in tree.args.args:
             var = arg.arg
@@ -118,15 +123,18 @@ class FSM:
                     width = 1
                 else:
                     raise NotImplementedError(type(_type))
-                process(var)
+                process(var, width)
+                source.add_line("wire({var}.O, {func}.{var})".format(var=var, func=func_name))
         tree.body = ast.parse(str(source)).body
         tree.decorator_list = [ast.Name("circuit", ast.Load())]
+        if clock_enable:
+            tree.args.args.append(ast.arg("CE", ast.parse("In(Bit)").body[0].value))
         print(astor.to_source(tree))
-        source, _ = process_circuit_ast(tree)
-        prog = "from magma import *\nfrom mantle import *\n" + source
-        print(source)
-        exec(prog)
-        exit(1)
+        source, name = process_circuit_ast(tree)
+        for i, line in enumerate(source.splitlines()):
+            print("{} {}".format(i + 1, line))
+        exec(source)
+        return eval(name)
 
 
 def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
@@ -137,3 +145,5 @@ def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
             else:
                 return FSM(fn, mode_or_fn, clock_enable, render_cfg)
         return wrapped
+    return FSM(mode_or_fn, "TODO: REMOVE THIS PARAM", clock_enable, render_cfg)
+
