@@ -41,4 +41,5 @@ def fifo(height, width):
                     status -= 1
                 elif write_enable and ~read_enable:
                     status += 1
+                yield
     return _fifo
