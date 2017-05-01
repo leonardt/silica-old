@@ -12,7 +12,6 @@ import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
     specialize_constants, replace_symbols
 from silica.visitors import collect_names
-from silica.type_checker import type_check
 import os
 from copy import deepcopy
 
@@ -64,8 +63,6 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         local_vars.update(loopvars)
         tree, loopvars = desugar_for_loops(tree)
         local_vars.update(loopvars)
-        # Defer to magma type checking for now
-        # type_check(tree)
 
         local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree, clock_enable, local_vars)
