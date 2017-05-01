@@ -1,4 +1,5 @@
-from silica import fsm, Input, Output
+from magma import *
+from silica import fsm
 
 
 VGA_NUM_ROWS     = 480
@@ -23,11 +24,11 @@ VGA_VSYNC_TS     = VGA_VSYNC_OFFSET + VGA_VSYNC_TDISP + VGA_VSYNC_TFP
 
 @fsm(clock_enable=True)
 def vga_timing(
-        horizontal_sync : Output,
-        vertical_sync   : Output,
-        pixel_valid     : Output,
-        vga_row         : Output[10],
-        vga_col         : Output[10]):
+        horizontal_sync : Out(Bit),
+        vertical_sync   : Out(Bit),
+        pixel_valid     : Out(Bit),
+        vga_row         : Out(Array(10, Bit)),
+        vga_col         : Out(Array(10, Bit))):
     while True:
         for row in range(0, VGA_VSYNC_TS):
             for col in range(0, VGA_HSYNC_TS):
