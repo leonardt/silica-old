@@ -103,11 +103,11 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
             for i in range(num_states):
                 state_info = cfg.paths[i][-1]
                 result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
-                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
+                # assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
                 if len(result) == 0:
                     source.add_line("wire({var}.O, {var}_mux.I{i})".format(var=var, i=i))
                 else:
-                    statement = result[0]
+                    statement = result[-1]  # TODO: Should we use last connect semantics?
                     symbol_table = {
                         # var: ast.Name(var + "_state_{}".format(i), ast.Store())
                         var: ast.Name(var + "_mux.I{}".format(i), ast.Store())
