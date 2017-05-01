@@ -25,6 +25,6 @@ sim_tx: sim_tx.cpp
 	./obj_dir/Vuart_transmitter
 
 clean:
-	rm -f *.bin *.txt *.blif *.rpt
+	rm -f *.bin *.txt *.blif *.rpt *.pcf *.v
 
 .PHONY: all explain install clean
