@@ -80,7 +80,11 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         mux_height = round_to_next_power_of_two(num_states)
         source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
         source.add_line("wire(yield_state.I, yield_state_mux.O)")
-        source.add_line("wire(yield_state.O, yield_state_mux.S[:{}])".format(state_width))
+        if state_width > 1:
+            mux_subscript = "[:{}]".format(state_width)
+        else:
+            mux_subscript = ""
+        source.add_line("wire(yield_state.O, yield_state_mux.S{})".format(mux_subscript))
         for i in range(num_states):
             # The final statement in the path is the next yield (skip the
             # state_info node which is the actual last item in the list
@@ -94,7 +98,11 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
                 source.add_line("wire({}.CE, {}.CE)".format(var, func_name))
             source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, width))
             source.add_line("wire({}.I, {}_mux.O)".format(var, var))
-            source.add_line("wire(yield_state.O, {}_mux.S[:{}])".format(var, state_width))
+            if state_width > 1:
+                mux_subscript = "[:{}]".format(state_width)
+            else:
+                mux_subscript = ""
+            source.add_line("wire(yield_state.O, {}_mux.S{})".format(var, mux_subscript))
             for i in range(num_states):
                 state_info = cfg.paths[i][-1]
                 result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
