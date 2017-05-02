@@ -4,7 +4,7 @@ from loam.boards.icestick import IceStick
 from silica import fsm
 
 @fsm(clock_enable=True)
-def blink(D1 : Out(Bit), D2 : Out(Bit), D3 : Out(Bit)):
+def simple(D1 : Out(Bit), D2 : Out(Bit), D3 : Out(Bit)):
     while True:
         D1 = 1
         D2 = 0
@@ -26,11 +26,11 @@ icestick.D1.on()
 icestick.D2.on()
 icestick.D3.on()
 main = icestick.main()
-s = blink()
+s = simple()
 counter = Counter(23)
 wire(s.CE, counter.COUT)
 wire(s.D1, main.D1)
 wire(s.D2, main.D2)
 wire(s.D3, main.D3)
 
-compile("blink", main)
+compile("simple", main)
