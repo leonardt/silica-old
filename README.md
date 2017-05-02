@@ -39,3 +39,15 @@ Run the Test Suite
 ```shell
 py.test --cov=silica --cov-report term-missing test
 ```
+
+# Syntax
+Extends [mantle](https://github.com/phanrahan/mantle) syntax with
+```
+S ::= ...
+    | if ( E ) { S* } else { S* }
+    | if ( E ) { S* }
+    | while ( E ) { S* }
+    | for ( Id in range(Num) { S* }  # TODO: Should we support more than ranges?
+    | yield
+    | yield from Id
+```
