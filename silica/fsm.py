@@ -12,6 +12,7 @@ import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
     specialize_constants, replace_symbols
 from silica.visitors import collect_names
+from silica.code_gen import Source
 import os
 from copy import deepcopy
 
@@ -26,17 +27,6 @@ def get_global_vars_for_func(fn):
 
 def round_to_next_power_of_two(x):
     return 1<<(x-1).bit_length()
-
-
-class Source:
-    def __init__(self):
-        self._source = ""
-
-    def add_line(self, line):
-        self._source += line + "\n"
-
-    def __str__(self):
-        return self._source.rstrip()
 
 
 class ComparesWithIncrementsSpecializer(ast.NodeTransformer):
@@ -56,8 +46,6 @@ def specialize_compares_with_increments(tree):
     return ComparesWithIncrementsSpecializer().visit(tree)
 
 
-# class FSM:
-#     def __init__(self, f, backend, clock_enable=False, render_cfg=False):
 def FSM(f, backend, clock_enable=False, render_cfg=False):
         # TODO: Instead of global namespace for function, should get the
         # current frame of the function definition (needed to support higher
@@ -162,90 +150,6 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         if DEBUG_STATE:
             tree.args.args.append(ast.arg("state_out", ast.parse("Out(Array({}, Bit))".format(num_states)).body[0].value))
         tree = specialize_compares_with_increments(tree)
-        print(astor.to_source(tree))
-        source, name = process_circuit_ast(tree)
-        for i, line in enumerate(source.splitlines()):
-            print("{} {}".format(i + 1, line))
-        exec(source)
-        return eval(name)
-        # num_yields = cfg.curr_yield_id
-        # yield_width = (num_yields - 1).bit_length()
-        # source.add_line("yield_state = Register({}, ce={})".format(yield_width, clock_enable))
-        # if clock_enable:
-        #     source.add_line("wire(yield_state.CE, {}.CE)".format(func_name))
-        # source.add_line("yield_state_or = Or({}, {})".format(num_yields, yield_width))
-        # mux_height = round_to_next_power_of_two(num_states)
-        # source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
-        # source.add_line("wire(yield_state.I, yield_state_mux.O)")
-        # if state_width > 1:
-        #     mux_subscript = "[:{}]".format(state_width)
-        # else:
-        #     mux_subscript = ""
-        # source.add_line("wire(yield_state.O, yield_state_mux.S{})".format(mux_subscript))
-        # if state_width > 1 and (mux_height - 1).bit_length() > state_width:
-        #     source.add_line("wire(array({}), yield_state_mux.S[{}:])".format(", ".join(["0"] * (mux_height.bit_length() - state_width)), state_width))
-        for i in range(num_yields):
-            # The final statement in the path is the next yield (skip the
-            # state_info node which is the actual last item in the list
-            # TODO: There should be a better interface, probably a Paths object
-            next_yield = cfg.paths[i][-2].yield_id
-            source.add_line("yield_{}_and = And({}, {})".format(i, 2, yield_width))
-            source.add_line("wire(yield_{}_and.O, yield_state_or.I{})".format(i))
-            source.add_line("wire(yield_{}_and.I0, int2seq({}, {}))".format(i, next_yield, yield_width))
-            source.add_line("wire(yield_{}_and.I1, int2seq({}, {}))".format(i, next_yield, yield_width))
-            # source.add_line("wire(yield_state_mux.I{i}, int2seq({next_state}, {width}))".format(i=i, next_state=next_state, width=state_width))
-        # for i in range(num_states, mux_height):
-        #     source.add_line("wire(yield_state_mux.I{i}, int2seq(0, {width}))".format(i=i, width=state_width))
-
-        def process(var, width):
-            if clock_enable:
-                source.add_line("wire({}.CE, {}.CE)".format(var, func_name))
-            # source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, width))
-            # source.add_line("wire({}.I, {}_mux.O)".format(var, var))
-            # if state_width > 1:
-            #     mux_subscript = "[:{}]".format(state_width)
-            # else:
-            #     mux_subscript = ""
-            # source.add_line("wire(yield_state.O, {}_mux.S{})".format(var, mux_subscript))
-            # if state_width > 1 and (mux_height - 1).bit_length() > state_width:
-            #     source.add_line("wire(array({}), {}_mux.S[{}:])".format(", ".join(["0"] * (mux_height.bit_length() - state_width)), var, state_width))
-            for i in range(num_states):
-                state_info = cfg.paths[i][-1]
-                result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
-                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
-                if len(result) == 0:
-                    # source.add_line("wire({var}.O, {var}_mux.I{i})".format(var=var, i=i))
-                    pass
-                else:
-                    statement = result[-1]  # TODO: Should we use last connect semantics?
-                    symbol_table = {
-                        # var: ast.Name(var + "_state_{}".format(i), ast.Store())
-                        # var: ast.Name(var + "_mux.I{}".format(i), ast.Store())
-                    }
-                    statement = replace_symbols(statement, symbol_table, ast.Store)
-                    source.add_line(astor.to_source(statement).rstrip())
-                    # source.add_line("wire({var}_state_{i}, {var}_mux.I{i})".format(var=var, i=i))
-            # for i in range(num_states, mux_height):
-            #     source.add_line("wire({var}_mux.I{i}, int2seq(0, {width}))".format(var=var, i=i, width=width))
-        for var, width in local_vars:
-            process(var, width)
-
-        for arg in tree.args.args:
-            var = arg.arg
-            _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
-            if _type.isoutput():
-                if isinstance(_type, magma.ArrayType):
-                    width = _type.N
-                elif isinstance(_type, magma.BitType):
-                    width = 1
-                else:
-                    raise NotImplementedError(type(_type))
-                process(var, width)
-                source.add_line("wire({var}.O, {func}.{var})".format(var=var, func=func_name))
-        tree.body = ast.parse(str(source)).body
-        tree.decorator_list = [ast.Name("circuit", ast.Load())]
-        if clock_enable:
-            tree.args.args.append(ast.arg("CE", ast.parse("In(Bit)").body[0].value))
         print(astor.to_source(tree))
         source, name = process_circuit_ast(tree)
         for i, line in enumerate(source.splitlines()):

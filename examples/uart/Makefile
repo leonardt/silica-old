@@ -19,11 +19,6 @@ upload_mac: $(NAME).bin
 	iceprog $(NAME).bin
 	sudo kextload -b com.apple.driver.AppleUSBFTDI
 
-sim_tx: sim_tx.cpp
-	verilator -Wall --cc uart_transmitter.v --exe sim_tx.cpp
-	cd obj_dir && make -j -f Vuart_transmitter.mk Vuart_transmitter
-	./obj_dir/Vuart_transmitter
-
 clean:
 	rm -f *.bin *.txt *.blif *.rpt
 
