@@ -13,6 +13,7 @@ from silica.transformations import desugar_for_loops, desugar_yield_from_range, 
     specialize_constants, replace_symbols
 from silica.visitors import collect_names
 from silica.code_gen import Source
+import silica.ast_utils as ast_utils
 import os
 from copy import deepcopy
 
@@ -78,18 +79,7 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         yield_width = (num_yields - 1).bit_length()
 
         local_vars.append(("yield_state", yield_width))
-        outputs = []
-        for arg in tree.args.args:
-            var = arg.arg
-            _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
-            if _type.isoutput():
-                if isinstance(_type, magma.ArrayType):
-                    width = _type.N
-                elif isinstance(_type, magma.BitType):
-                    width = 1
-                else:
-                    raise NotImplementedError(type(_type))
-                outputs.append((var, width))
+        outputs = ast_utils.get_outputs_from_func(tree)
 
         num_states = len(cfg.paths)
         state_width = (num_states - 1).bit_length()
