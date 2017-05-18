@@ -39,6 +39,23 @@ class Source:
         return self._source.rstrip()
 
 
+class ComparesWithIncrementsSpecializer(ast.NodeTransformer):
+    def visit_Compare(self, node):
+        if len(node.comparators) == 1:
+            if isinstance(node.comparators[0], ast.Num):
+                if isinstance(node.left, ast.BinOp) and isinstance(node.left.right, ast.Num):
+                    if isinstance(node.left.op, ast.Add):
+                        node.comparators[0].n -= node.left.right.n
+                    else:
+                        raise NotImplementedError()
+                    node.left = node.left.left
+        return node
+
+
+def specialize_compares_with_increments(tree):
+    return ComparesWithIncrementsSpecializer().visit(tree)
+
+
 # class FSM:
 #     def __init__(self, f, backend, clock_enable=False, render_cfg=False):
 def FSM(f, backend, clock_enable=False, render_cfg=False):
@@ -69,52 +86,147 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         if render_cfg:
             cfg.render()  # pragma: no cover
         source = Source()
+        num_yields = cfg.curr_yield_id
+        yield_width = (num_yields - 1).bit_length()
+
+        local_vars.append(("yield_state", yield_width))
+        outputs = []
+        for arg in tree.args.args:
+            var = arg.arg
+            _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
+            if _type.isoutput():
+                if isinstance(_type, magma.ArrayType):
+                    width = _type.N
+                elif isinstance(_type, magma.BitType):
+                    width = 1
+                else:
+                    raise NotImplementedError(type(_type))
+                outputs.append((var, width))
+
         num_states = len(cfg.paths)
         state_width = (num_states - 1).bit_length()
-        source.add_line("yield_state = Register({}, ce={})".format(state_width, clock_enable))
+        source.add_line("state = Register({}, ce={})".format(num_states, clock_enable))
+        DEBUG_STATE = False
+        if DEBUG_STATE:
+            source.add_line("wire(state.O, state_out)")
+        source.add_line("wire(state.CE, CE)")
+        replace_symbol_table = {}
+        for var, width in local_vars + outputs:
+            source.add_line("{}_reg = Register({}, ce={})".format(var, width, clock_enable))
+            source.add_line("wire({}_reg.CE, CE)".format(var))
+            if (var, width) in outputs:
+                source.add_line("wire({var}_reg.O, {var})".format(var=var))
+            replace_symbol_table[var] = ast.Attribute(ast.Name(var + "_reg", ast.Load()), "O", ast.Load())
+            source.add_line("{}_next = Or({}, {})".format(var, num_states, width))
+            source.add_line("wire({var}_next.O, {var}_reg.I)".format(var=var))
+        for i, path in enumerate(cfg.paths):
+            state_info = path[-1]
+            state_info.statements = [replace_symbols(statement, replace_symbol_table, ast.Load) for statement in state_info.statements]
+            curr = state_info.yield_state
+            for cond in state_info.conds:
+                curr = ast.BinOp(curr, ast.BitAnd(), cond)
+            for var, _ in local_vars + outputs:
+                symbol_table = {
+                    var: ast.Attribute(ast.Name(var + "_next", ast.Load()), "O", ast.Load())
+                }
+                curr = replace_symbols(curr, symbol_table, ast.Load)
+            source.add_line("state.I[{}] = {}".format(i, astor.to_source(curr).rstrip()))
+        for var, width in local_vars + outputs:
+            for i, path in enumerate(cfg.paths):
+                source.add_line("{}_{} = And(2, {})".format(var, i, width))
+                source.add_line("wire({var}_{i}.O, {var}_next.I{i})".format(var=var, i=i))
+                if width > 1:
+                    for j in range(width):
+                        source.add_line("wire(state.O[{i}], {var}_{i}.I0[{j}])".format(i=i, var=var, j=j))
+                else:
+                    source.add_line("wire(state.O[{i}], {var}_{i}.I0)".format(i=i, var=var))
+                state_info = path[-1]
+                result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
+                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
+                if len(result) == 0:
+                    source.add_line("wire({var}_reg.O, {var}_{i}.I1)".format(var=var, i=i))
+                else:
+                    statement = result[-1]  # TODO: Should we use last connect semantics?
+                    symbol_table = {
+                        var: ast.Attribute(ast.Name("{}_{}".format(var, i), ast.Load()), "I1", ast.Store())
+                    }
+                    statement = replace_symbols(statement, symbol_table, ast.Store)
+                    source.add_line(astor.to_source(statement).rstrip())
+
+
+        print(source)
+        tree.body = ast.parse(str(source)).body
+        tree.decorator_list = [ast.Name("circuit", ast.Load())]
         if clock_enable:
-            source.add_line("wire(yield_state.CE, {}.CE)".format(func_name))
-        mux_height = round_to_next_power_of_two(num_states)
-        source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
-        source.add_line("wire(yield_state.I, yield_state_mux.O)")
-        if state_width > 1:
-            mux_subscript = "[:{}]".format(state_width)
-        else:
-            mux_subscript = ""
-        source.add_line("wire(yield_state.O, yield_state_mux.S{})".format(mux_subscript))
-        for i in range(num_states):
+            tree.args.args.append(ast.arg("CE", ast.parse("In(Bit)").body[0].value))
+        if DEBUG_STATE:
+            tree.args.args.append(ast.arg("state_out", ast.parse("Out(Array({}, Bit))".format(num_states)).body[0].value))
+        tree = specialize_compares_with_increments(tree)
+        print(astor.to_source(tree))
+        source, name = process_circuit_ast(tree)
+        for i, line in enumerate(source.splitlines()):
+            print("{} {}".format(i + 1, line))
+        exec(source)
+        return eval(name)
+        # num_yields = cfg.curr_yield_id
+        # yield_width = (num_yields - 1).bit_length()
+        # source.add_line("yield_state = Register({}, ce={})".format(yield_width, clock_enable))
+        # if clock_enable:
+        #     source.add_line("wire(yield_state.CE, {}.CE)".format(func_name))
+        # source.add_line("yield_state_or = Or({}, {})".format(num_yields, yield_width))
+        # mux_height = round_to_next_power_of_two(num_states)
+        # source.add_line("yield_state_mux = Mux({}, {})".format(mux_height, state_width))
+        # source.add_line("wire(yield_state.I, yield_state_mux.O)")
+        # if state_width > 1:
+        #     mux_subscript = "[:{}]".format(state_width)
+        # else:
+        #     mux_subscript = ""
+        # source.add_line("wire(yield_state.O, yield_state_mux.S{})".format(mux_subscript))
+        # if state_width > 1 and (mux_height - 1).bit_length() > state_width:
+        #     source.add_line("wire(array({}), yield_state_mux.S[{}:])".format(", ".join(["0"] * (mux_height.bit_length() - state_width)), state_width))
+        for i in range(num_yields):
             # The final statement in the path is the next yield (skip the
             # state_info node which is the actual last item in the list
             # TODO: There should be a better interface, probably a Paths object
-            next_state = cfg.paths[i][-2].yield_id
-            source.add_line("wire(yield_state_mux.I{i}, int2seq({next_state}, {width}))".format(i=i, next_state=next_state, width=state_width))
+            next_yield = cfg.paths[i][-2].yield_id
+            source.add_line("yield_{}_and = And({}, {})".format(i, 2, yield_width))
+            source.add_line("wire(yield_{}_and.O, yield_state_or.I{})".format(i))
+            source.add_line("wire(yield_{}_and.I0, int2seq({}, {}))".format(i, next_yield, yield_width))
+            source.add_line("wire(yield_{}_and.I1, int2seq({}, {}))".format(i, next_yield, yield_width))
+            # source.add_line("wire(yield_state_mux.I{i}, int2seq({next_state}, {width}))".format(i=i, next_state=next_state, width=state_width))
+        # for i in range(num_states, mux_height):
+        #     source.add_line("wire(yield_state_mux.I{i}, int2seq(0, {width}))".format(i=i, width=state_width))
 
         def process(var, width):
-            source.add_line("{} = Register({}, ce={})".format(var, width, clock_enable))
             if clock_enable:
                 source.add_line("wire({}.CE, {}.CE)".format(var, func_name))
-            source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, width))
-            source.add_line("wire({}.I, {}_mux.O)".format(var, var))
-            if state_width > 1:
-                mux_subscript = "[:{}]".format(state_width)
-            else:
-                mux_subscript = ""
-            source.add_line("wire(yield_state.O, {}_mux.S{})".format(var, mux_subscript))
+            # source.add_line("{}_mux = Mux({}, {})".format(var, mux_height, width))
+            # source.add_line("wire({}.I, {}_mux.O)".format(var, var))
+            # if state_width > 1:
+            #     mux_subscript = "[:{}]".format(state_width)
+            # else:
+            #     mux_subscript = ""
+            # source.add_line("wire(yield_state.O, {}_mux.S{})".format(var, mux_subscript))
+            # if state_width > 1 and (mux_height - 1).bit_length() > state_width:
+            #     source.add_line("wire(array({}), {}_mux.S[{}:])".format(", ".join(["0"] * (mux_height.bit_length() - state_width)), var, state_width))
             for i in range(num_states):
                 state_info = cfg.paths[i][-1]
                 result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
-                # assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
+                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
                 if len(result) == 0:
-                    source.add_line("wire({var}.O, {var}_mux.I{i})".format(var=var, i=i))
+                    # source.add_line("wire({var}.O, {var}_mux.I{i})".format(var=var, i=i))
+                    pass
                 else:
                     statement = result[-1]  # TODO: Should we use last connect semantics?
                     symbol_table = {
                         # var: ast.Name(var + "_state_{}".format(i), ast.Store())
-                        var: ast.Name(var + "_mux.I{}".format(i), ast.Store())
+                        # var: ast.Name(var + "_mux.I{}".format(i), ast.Store())
                     }
                     statement = replace_symbols(statement, symbol_table, ast.Store)
                     source.add_line(astor.to_source(statement).rstrip())
                     # source.add_line("wire({var}_state_{i}, {var}_mux.I{i})".format(var=var, i=i))
+            # for i in range(num_states, mux_height):
+            #     source.add_line("wire({var}_mux.I{i}, int2seq(0, {width}))".format(var=var, i=i, width=width))
         for var, width in local_vars:
             process(var, width)
 

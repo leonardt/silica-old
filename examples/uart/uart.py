@@ -1,38 +1,16 @@
-from silica import fsm, Input, Output
+from magma import *
+from mantle import *
+from loam.boards.icestick import IceStick
+from silica import fsm
 
 BAUD_RATE  = 28800
 CLOCK_RATE = int(12e6)  # 12 mhz
 
-@fsm
-def baud_rx(out : Output):
-    while True:
-        yield
-        out = 0
-        for i in range(0, CLOCK_RATE // (BAUD_RATE * 16) - 2):
-            yield
-        out = 1
-
-
-@fsm
-def baud_tx(out : Output):
-    while True:
-        yield
-        out = 0
-        for i in range(0, (CLOCK_RATE // BAUD_RATE) - 2):
-            yield
-        out = 1
-
-
 
 @fsm(clock_enable=True)
-def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output):
+def uart_transmitter(data : In(Array(8, Bit)), valid : In(Bit), tx : Out(Bit)):
     while True:
         if valid:
-            # Signal the FIFO to load into data
-            ready = 1
-            yield
-            ready = 0
-
             tx = 0  # start bit
             yield
             for i in range(0, 8):
@@ -44,27 +22,28 @@ def uart_transmitter(data : Input[8], valid : Input, tx : Output, ready : Output
             tx = 1
             yield
 
-@fsm(clock_enable=True)
-def uart_receiver(rx    : Input, 
-                  ready : Input, 
-                  data  : Output[8], 
-                  valid : Output):
-    """
-    yield from range(8) -> yield for 8 cycles
-    """
-    # data = Reg(8)  # TODO: Can we just specify the output to be registered?
-    while True:
-        yield
-        valid = 0
-        if ready & ~rx:
-            yield from range(8)  # Wait half a baud period
-            if ~rx:              # Check if still low
-                for i in range(8):
-                    yield from range(15)
-                    data[i] = rx
-                    yield
-                yield from range(15)
-                valid = rx  # end bit
-                yield
-                valid = 0
-                yield from range(14)
+
+icestick = IceStick()
+icestick.Clock.on()
+icestick.TX.output().on()
+for i in range(len(icestick.PMOD0)):
+    icestick.PMOD0[i].output().on()
+# for i in range(len(icestick.PMOD1)):
+#     icestick.PMOD1[i].output().on()
+main = icestick.main()
+baud_clock = CounterModM(103, 8)
+uart = uart_transmitter()
+wire(uart.data, int2seq(85, 8))
+wire(uart.valid, 1)
+wire(uart.tx, main.TX)
+wire(uart.tx, main.PMOD0[0])
+wire(uart.tx, main.PMOD0[1])
+wire(uart.tx, main.PMOD0[2])
+wire(uart.tx, main.PMOD0[3])
+# wire(uart.state_out[3], main.PMOD1[0])
+# wire(uart.state_out[4], main.PMOD1[1])
+# wire(uart.state_out[5], main.PMOD1[2])
+# wire(uart.state_out[6], main.PMOD1[3])
+wire(uart.CE, baud_clock.COUT)
+
+compile("uart", main)

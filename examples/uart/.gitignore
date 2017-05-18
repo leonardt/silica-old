@@ -1,11 +1,5 @@
-*.bin
-*.txt
-*.blif
-data_controller.v
-signal.v
-uart_transmitter.v
-baud_rx.v
-baud_tx.v
-uart_control.v
-uart_receiver.v
-obj_dir
+uart.pcf
+uart.v
+uart.bin
+uart.blif
+uart.txt
