@@ -23,3 +23,6 @@ def test_uart():
                 simulator.evaluate()
             actual.append(int(simulator.get_value(uart.tx, scope)))
         assert expected == actual, str(expected) + str(actual)
+
+if __name__ == '__main__':
+    test_uart()
