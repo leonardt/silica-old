@@ -14,7 +14,7 @@ def test_uart():
             simulator.step()
             simulator.evaluate()
     scope = Scope()
-    expected = [0] + int2seq(85, 8) + [1]
+    expected = [0] + int2seq(94, 8) + [1]
     for h in range(2):
         actual = []
         for _ in range(len(expected)):
