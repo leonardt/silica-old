@@ -28,7 +28,17 @@ class ForLoopDesugarer(ast.NodeTransformer):
             else:
                 start = node.iter.args[0]
                 end = node.iter.args[1]
-            width = (end.n - 1).bit_length()
+            if isinstance(end, ast.Num):
+                width = (end.n - 1).bit_length()
+            else:
+                width = None
+                for keyword in node.iter.keywords:
+                    if keyword.arg == "bit_width":
+                        assert isinstance(keyword.value, ast.Num)
+                        width = keyword.value.n
+                        break
+                assert width is not None
+                # raise NotImplementedError(to_source(end))
             self.loopvars.add((node.target.id, width))
             return [
                 ast.Assign([ast.Name(node.target.id, ast.Store())], start),
@@ -40,7 +50,7 @@ class ForLoopDesugarer(ast.NodeTransformer):
             ]
         else:  # pragma: no cover
             print_ast(node)
-            raise NotImplementedError("Unsupport for loop construct {}".format(node.iter))
+            raise NotImplementedError("Unsupported for loop construct `{}`".format(to_source(node.iter)))
 
 def desugar_for_loops(tree):
     desugarer = ForLoopDesugarer()

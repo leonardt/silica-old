@@ -71,7 +71,7 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         local_vars.update(loopvars)
 
         local_vars = list(sorted(loopvars))
-        cfg = ControlFlowGraph(tree, clock_enable, local_vars)
+        cfg = ControlFlowGraph(tree, clock_enable)
         if render_cfg:
             cfg.render()  # pragma: no cover
         source = Source()
@@ -87,11 +87,13 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         DEBUG_STATE = False
         if DEBUG_STATE:
             source.add_line("wire(state.O, state_out)")
-        source.add_line("wire(state.CE, CE)")
+        if clock_enable:
+            source.add_line("wire(state.CE, CE)")
         replace_symbol_table = {}
         for var, width in local_vars + outputs:
             source.add_line("{}_reg = Register({}, ce={})".format(var, width, clock_enable))
-            source.add_line("wire({}_reg.CE, CE)".format(var))
+            if clock_enable:
+                source.add_line("wire({}_reg.CE, CE)".format(var))
             if (var, width) in outputs:
                 source.add_line("wire({var}_reg.O, {var})".format(var=var))
             replace_symbol_table[var] = ast.Attribute(ast.Name(var + "_reg", ast.Load()), "O", ast.Load())

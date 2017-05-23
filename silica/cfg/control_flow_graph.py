@@ -8,9 +8,8 @@ from copy import deepcopy
 
 
 class ControlFlowGraph(ast.NodeVisitor):
-    def __init__(self, tree, clock_enable, local_vars):
+    def __init__(self, tree, clock_enable):
         super()
-        local_widths = {name: width for name, width in local_vars}
         self.blocks = []
         self.curr_block = None
         self.curr_yield_id = 1
@@ -26,7 +25,12 @@ class ControlFlowGraph(ast.NodeVisitor):
                 assert False
         self.visit(tree)
         self.bypass_conds()
-        paths = self.collect_paths_between_yields()
+        try:
+            paths = self.collect_paths_between_yields()
+        except RecursionError as e:
+            # Most likely infinite loop in CFG, should catch this with an analysis phase
+            self.render()
+            raise e
         paths = self.promote_live_variables(paths)
         paths, state_vars = self.append_state_info(paths, outputs, inputs)
         self.paths = paths
@@ -95,9 +99,14 @@ class ControlFlowGraph(ast.NodeVisitor):
             for block in path[:-1]:
                 if isinstance(block, BasicBlock):
                     for statement in block.statements:
-                        assert isinstance(statement, ast.Assign)
-                        if isinstance(statement.targets[0], ast.Name):
-                            seen.add(statement.targets[0].id)
+                        if isinstance(statement, ast.Assign):
+                            target = statement.targets[0]
+                        elif isinstance(statement, ast.AugAssign):
+                            target = statement.target
+                        else:
+                            raise NotImplementedError
+                        if isinstance(target, ast.Name):
+                            seen.add(target.id)
                         state.statements.append(statement)
             # for output in outputs:
             #     if output not in seen:

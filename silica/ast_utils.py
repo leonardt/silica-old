@@ -8,6 +8,8 @@ import magma
 def print_ast(tree):  # pragma: no cover
     print(astor.to_source(tree))
 
+def to_source(tree):
+    return astor.to_source(tree).rstrip()
 
 def get_ast(obj):
     indented_program_txt = inspect.getsource(obj)
