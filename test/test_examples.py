@@ -1,13 +1,13 @@
 from magma import *
 from magma.python_simulator import PythonSimulator
 from magma.scope import Scope
+import sys
+sys.path.append('../examples')
+
 
 def test_uart():
-    import sys
-    sys.path.append('../examples')
-    from examples.uart.uart import main, uart
-
-    simulator = PythonSimulator(main)
+    import examples.uart.uart as uart_example
+    simulator = PythonSimulator(uart_example.main)
     # TODO: Why do we need to warm up with two clock cycles?
     for _ in range(2):
         for j in range(103 * 2):
@@ -21,7 +21,7 @@ def test_uart():
             for j in range(103 * 2):
                 simulator.step()
                 simulator.evaluate()
-            actual.append(int(simulator.get_value(uart.tx, scope)))
+            actual.append(int(simulator.get_value(uart_example.uart.tx, scope)))
         assert expected == actual, str(expected) + str(actual)
 
 if __name__ == '__main__':

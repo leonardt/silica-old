@@ -1,5 +1,6 @@
 from magma import *
 from mantle import *
+from loam.boards.icestick import IceStick
 from silica import fsm
 
 @fsm
@@ -21,8 +22,8 @@ def addr_logic(
             m_axi_araddr = config_start_addr
             m_axi_arvalid = 1
             yield
-            # for _ in range(config_nbytes // 128, bit_width=25):  # Burst size 128 bytes (18 * 6)
-            for _ in range(config_nbytes[7:], bit_width=25):  # Burst size 128 bytes (18 * 6)
+            # Burst size is 128 bytes (18 * 6) so we divide config_nbytes by 128
+            for _ in range(config_nbytes[7:], bit_width=25):  
                 while ~m_axi_arready:
                     yield
                 m_axi_araddr += 128
@@ -33,79 +34,101 @@ def addr_logic(
         else:
             yield
 
-@fsm 
-def read_logic(
-        m_axi_rvalid : In(Bit),
-        config_valid  : In(Bit),
-        config_nbytes : In(Array(32, Bit)),
-        data_ready_downstream : In(Bit),
-        data_valid            : Out(Bit),
-        read_ready : Out(Bit)
-    ):
-    while True:
-        if config_valid:
-            read_ready = 0
-            count = 0
-            data_valid = m_axi_rvalid
-            for _ in range(start=0, stop=config_nbytes[8:31] + int2seq(0, 7), step=8):  # Burst size 128 bytes (18 * 6)
-                while not (m_axi_rvalid and data_ready_downstream):
-                    yield
-            data_valid = 0
-            read_ready = 1
-        else:
-            yield
+icestick = IceStick()
+icestick.Clock.on()
+icestick.Clock.on()
+for i in range(4):
+    icestick.PMOD0[i].output().on()
+main = icestick.main()
+addr = addr_logic()
+# wire(addr.m_axi_araddr, main.I0)
+wire(addr.m_axi_arready, 1)
+wire(addr.m_axi_arvalid, main.PMOD0[0])
 
-@circuit
-def dram_reader(
-        # AXI port
-        m_axi_araddr  : Out(Array(32, Bit)),
-        m_axi_arready : In(Bit),
-        m_axi_arvalid : Out(Bit),
-        m_axi_rdata   : In(Array(64, Bit)),
-        m_axi_rready  : Out(Bit),
-        m_axi_rresp   : In(Array(2, Bit)),
-        m_axi_rvalid  : In(Bit),
-        m_axi_rlast   : In(Bit),
-        m_axi_arlen   : Out(Array(4, Bit)),
-        m_axi_arsize  : Out(Array(3, Bit)),
-        m_axi_arburst : Out(Array(2, Bit)),
+wire(1, addr.config_valid)
+wire(int2seq(0x44, 32), addr.config_start_addr)
+wire(int2seq(1280, 32), addr.config_nbytes)
 
-        # Control config
-        config_valid      : In(Bit),
-        config_read       : Out(Bit),
-        config_start_addr : In(Array(32, Bit)),
-        config_nbytes     : In(Array(32, Bit)),
+wire(addr.addr_ready, main.PMOD0[1])
+wire(addr.m_axi_araddr[7], main.PMOD0[2])
+wire(addr.m_axi_araddr[8], main.PMOD0[3])
 
-        # Ram port
-        data_ready_downstream : In(Bit),
-        data_valid            : Out(Bit),
-        data                  : Out(Array(64, Bit))
-    ):
-    m_axi_arlen   = 0b1111
-    m_axi_arsize  = 0b011
-    m_axi_arburst = 0b1
+if __name__ == '__main__':
+    compile("dram_reader", main)
 
-    addr_logic = addr_logc()  # TODO: Add sugar for function call syntax for wiring arguments
-    wire(addr_logic.m_axi_araddr, m_axi_araddr)
-    wire(addr_logic.m_axi_arready, m_axi_arready)
-    wire(addr_logic.m_axi_arvalid, m_axi_arvalid)
-
-    wire(addr_logic.config_valid, config_valid)
-    wire(addr_logic.config_start_addr, config_start_addr)
-    wire(addr_logic.config_nbytes, config_nbytes)
-
-    wire(addr_logic.addr_ready, addr_ready)
-    read_logic = read_logic()
-
-    wire(read_logic.m_axi_rvalid, m_axi_rvalid)
-    wire(read_logic.config_valid, config_valid)
-    wire(read_logic.config_nbytes, config_nbytes)
-    wire(read_logic.data_ready_downstream, data_ready_downstream)
-    wire(read_logic.data_valid, data_valid)
-    wire(read_logic.read_ready, read_ready)
-
-    data = m_axi_rdata
-    config_ready = read_logic.read_ready & addr_logic.addr_ready
+# @fsm 
+# def read_logic(
+#         m_axi_rvalid : In(Bit),
+#         config_valid  : In(Bit),
+#         config_nbytes : In(Array(32, Bit)),
+#         data_ready_downstream : In(Bit),
+#         data_valid            : Out(Bit),
+#         read_ready : Out(Bit)
+#     ):
+#     while True:
+#         if config_valid:
+#             read_ready = 0
+#             count = 0
+#             data_valid = m_axi_rvalid
+#             for _ in range(start=0, stop=config_nbytes[8:31] + int2seq(0, 7), step=8, bit_width=32):  # Burst size 128 bytes (18 * 6)
+#                 while not (m_axi_rvalid and data_ready_downstream):
+#                     yield
+#             data_valid = 0
+#             read_ready = 1
+#         else:
+#             yield
+# 
+# @circuit
+# def dram_reader(
+#         # AXI port
+#         m_axi_araddr  : Out(Array(32, Bit)),
+#         m_axi_arready : In(Bit),
+#         m_axi_arvalid : Out(Bit),
+#         m_axi_rdata   : In(Array(64, Bit)),
+#         m_axi_rready  : Out(Bit),
+#         m_axi_rresp   : In(Array(2, Bit)),
+#         m_axi_rvalid  : In(Bit),
+#         m_axi_rlast   : In(Bit),
+#         m_axi_arlen   : Out(Array(4, Bit)),
+#         m_axi_arsize  : Out(Array(3, Bit)),
+#         m_axi_arburst : Out(Array(2, Bit)),
+# 
+#         # Control config
+#         config_valid      : In(Bit),
+#         config_read       : Out(Bit),
+#         config_start_addr : In(Array(32, Bit)),
+#         config_nbytes     : In(Array(32, Bit)),
+# 
+#         # Ram port
+#         data_ready_downstream : In(Bit),
+#         data_valid            : Out(Bit),
+#         data                  : Out(Array(64, Bit))
+#     ):
+#     m_axi_arlen   = 0b1111
+#     m_axi_arsize  = 0b011
+#     m_axi_arburst = 0b1
+# 
+#     addr_logic = addr_logc()  # TODO: Add sugar for function call syntax for wiring arguments
+#     wire(addr_logic.m_axi_araddr, m_axi_araddr)
+#     wire(addr_logic.m_axi_arready, m_axi_arready)
+#     wire(addr_logic.m_axi_arvalid, m_axi_arvalid)
+# 
+#     wire(addr_logic.config_valid, config_valid)
+#     wire(addr_logic.config_start_addr, config_start_addr)
+#     wire(addr_logic.config_nbytes, config_nbytes)
+# 
+#     wire(addr_logic.addr_ready, addr_ready)
+#     read_logic = read_logic()
+# 
+#     wire(read_logic.m_axi_rvalid, m_axi_rvalid)
+#     wire(read_logic.config_valid, config_valid)
+#     wire(read_logic.config_nbytes, config_nbytes)
+#     wire(read_logic.data_ready_downstream, data_ready_downstream)
+#     wire(read_logic.data_valid, data_valid)
+#     wire(read_logic.read_ready, read_ready)
+# 
+#     data = m_axi_rdata
+#     config_ready = read_logic.read_ready & addr_logic.addr_ready
 
 """
 Documentation pulled from

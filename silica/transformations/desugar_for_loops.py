@@ -16,7 +16,7 @@ class ForLoopDesugarer(ast.NodeTransformer):
                 new_body.append(result)
         node.body = new_body
         if is_call(node.iter) and is_name(node.iter.func) and \
-           node.iter.func.id == "range" and 4 > len(node.iter.args) > 0:
+           node.iter.func.id == "range" and 5 > len(node.iter.args) > 0:
             assert isinstance(node.target, ast.Name)
             if len(node.iter.args) <= 2:
                 incr = ast.Num(1)
