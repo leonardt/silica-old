@@ -18,14 +18,6 @@ import os
 from copy import deepcopy
 
 
-def get_global_vars_for_func(fn):
-    """
-    inspect.getmembers() returns a list of (name, value) pairs.
-    we are interested in name == __globals__
-    """
-    return [x for x in inspect.getmembers(fn) if x[0] == "__globals__"][0][1]
-
-
 def round_to_next_power_of_two(x):
     return 1<<(x-1).bit_length()
 
@@ -47,13 +39,9 @@ def specialize_compares_with_increments(tree):
     return ComparesWithIncrementsSpecializer().visit(tree)
 
 
-def FSM(f, backend, clock_enable=False, render_cfg=False):
-        # TODO: Instead of global namespace for function, should get the
-        # current frame of the function definition (needed to support higher
-        # order definitions with scoped/closure variables)
-        func_globals = get_global_vars_for_func(f)
+def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=False):
         constants = {}
-        for name, value in func_globals.items():
+        for name, value in func_locals.items():
             if isinstance(value, (int, )):
                 constants[name] = value
 
@@ -146,17 +134,20 @@ def FSM(f, backend, clock_enable=False, render_cfg=False):
         source, name = process_circuit_ast(tree)
         for i, line in enumerate(source.splitlines()):
             print("{} {}".format(i + 1, line))
-        exec(source)
-        return eval(name)
+        exec(source, func_globals, func_locals)
+        return eval(name, func_globals, func_locals)
 
 
 def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
+    stack = inspect.stack()
+    func_locals = stack[1].frame.f_locals
+    func_globals = stack[1].frame.f_globals
     if isinstance(mode_or_fn, str):
         def wrapped(fn):
             if mode_or_fn == "python":
                 return PyFSM(fn, clock_enable)
             else:
-                return FSM(fn, mode_or_fn, clock_enable, render_cfg)
+                return FSM(fn, func_locals, func_globals, mode_or_fn, clock_enable, render_cfg)
         return wrapped
-    return FSM(mode_or_fn, "TODO: REMOVE THIS PARAM", clock_enable, render_cfg)
+    return FSM(mode_or_fn, func_locals, func_globals, "TODO: REMOVE THIS PARAM", clock_enable, render_cfg)
 
