@@ -10,7 +10,7 @@ import silica.backend.verilog as verilog
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
-    specialize_constants, replace_symbols
+    specialize_constants, replace_symbols, constant_fold
 from silica.visitors import collect_names
 from silica.code_gen import Source
 import silica.ast_utils as ast_utils
@@ -53,6 +53,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
 
         local_vars = set()
         tree           = specialize_constants(tree, constants)
+        tree           = constant_fold(tree)
         tree, loopvars = desugar_yield_from_range(tree)
         local_vars.update(loopvars)
         tree, loopvars = desugar_for_loops(tree)
@@ -110,7 +111,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
                     source.add_line("wire(state.O[{i}], {var}_{i}.I0)".format(i=i, var=var))
                 state_info = path[-1]
                 result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
-                assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
+                # assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
                 if len(result) == 0:
                     source.add_line("wire({var}_reg.O, {var}_{i}.I1)".format(var=var, i=i))
                 else:

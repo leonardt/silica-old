@@ -1,6 +1,6 @@
 import ast
 import astor
-from silica.transformations import specialize_constants, replace_symbols
+from silica.transformations import specialize_constants, replace_symbols, constant_fold
 from silica.visitors import collect_names
 from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock, State
 import tempfile
@@ -125,6 +125,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                     new_statements = []
                     for statement in block.statements:
                         statement = replace_symbols(statement, symbol_table, ctx=ast.Load)
+                        statement = constant_fold(statement)
                         if isinstance(statement, ast.Assign) and \
                            len(statement.targets) == 1 and \
                            isinstance(statement.targets[0], ast.Name):
@@ -133,6 +134,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                     block.statements = new_statements
                 elif isinstance(block, Branch):
                     block.cond = replace_symbols(block.cond, symbol_table, ctx=ast.Load)
+                    block.cond = constant_fold(block.cond)
         return paths
 
 

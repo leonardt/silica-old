@@ -1,4 +1,5 @@
 from silica.transformations.desugar_for_loops import desugar_for_loops
 from silica.transformations.desugar_yield_from_range import desugar_yield_from_range
 from silica.transformations.specialize_constants import specialize_constants
+from silica.transformations.constant_fold import constant_fold
 from silica.transformations.replace_symbols import replace_symbols
