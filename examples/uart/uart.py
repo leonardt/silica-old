@@ -3,7 +3,7 @@ from mantle import *
 from loam.boards.icestick import IceStick
 from silica import fsm
 
-BAUD_RATE  = 28800
+BAUD_RATE  = 115200
 CLOCK_RATE = int(12e6)  # 12 mhz
 
 
@@ -26,10 +26,6 @@ def uart_transmitter(data : In(Array(8, Bit)), valid : In(Bit), tx : Out(Bit)):
 icestick = IceStick()
 icestick.Clock.on()
 icestick.TX.output().on()
-# for i in range(len(icestick.PMOD0)):
-#     icestick.PMOD0[i].output().on()
-# for i in range(len(icestick.PMOD1)):
-#     icestick.PMOD1[i].output().on()
 main = icestick.main()
 baud_clock = CounterModM(103, 8)
 uart = uart_transmitter()
@@ -37,14 +33,6 @@ wire(uart.data, int2seq(94, 8))
 wire(uart.valid, 1)
 wire(uart.tx, main.TX)
 wire(uart.CE, baud_clock.COUT)
-# wire(uart.tx, main.PMOD0[0])
-# wire(uart.tx, main.PMOD0[1])
-# wire(uart.tx, main.PMOD0[2])
-# wire(uart.tx, main.PMOD0[3])
-# wire(uart.state_out[3], main.PMOD1[0])
-# wire(uart.state_out[4], main.PMOD1[1])
-# wire(uart.state_out[5], main.PMOD1[2])
-# wire(uart.state_out[6], main.PMOD1[3])
 
 if __name__ == '__main__':
     compile("uart", main)
