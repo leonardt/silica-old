@@ -13,6 +13,7 @@ def REGs(n):
 def MUXs(n):
     return [Mux(2,8) for i in range(n)]
 
+# TODO: Use the ROM definition from class, should we merge this into mantle?
 def _ROM(logn, init, A):
     n = 1 << logn
     assert len(A) == logn
@@ -58,12 +59,21 @@ icestick.TX.output().on()
 main = icestick.main()
 baud_clock = CounterModM(103, 8)
 uart = uart_transmitter()
+
+# We use a ROM to store our message, it should look up the next entry every 11
+# baud ticks (the time it takes to send the current byte)
 advance = CounterModM(11, 4, ce=True)
 wire(advance.CE, baud_clock.COUT)
+
+# This counter controls the ROM, it's clock enable is controlled by the baud
+# clock divider `advance`
 counter = Counter(4, ce=True)
 wire(counter.CE, advance.COUT)
+
 message = "Hello, world! \r\n"
-rom = _ROM(4, [array(*int2seq(ord(char), 8)) for char in message], counter.O)
+message_bytes = [int2seq(ord(char), 8) for char in message]
+rom = _ROM(4, message_bytes, counter.O)
+
 wire(uart.data, rom.O)
 wire(uart.valid, 1)
 wire(uart.tx, main.TX)
