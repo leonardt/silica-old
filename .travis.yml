@@ -10,8 +10,8 @@ install:
     - sudo apt-get install verilator
     - "pip install -r requirements.txt"
     - "pip install -r dev-requirements.txt"
-    - "pip install -e git+ssh://git@github.com/phanrahan/magmacore@feature/circuit-port-repr#egg=magma"
-    - "pip install -e git+ssh://git@github.com/phanrahan/mantle@feature/expression-support-for-silica#egg=mantle"
+    - "pip install -e git+ssh://git@github.com/phanrahan/magmacore#egg=magma"
+    - "pip install -e git+ssh://git@github.com/phanrahan/mantle#egg=mantle"
     - "pip install -e git+ssh://git@github.com/phanrahan/loam#egg=loam"
     - "pip install codecov"
 
