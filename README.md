@@ -11,11 +11,11 @@ Requires Python 3.5+
 # Development Setup
 Ubuntu
 ```shell
-sudo apt install python3 verilator
+sudo apt install python3
 ```
 MacOS/Homebrew
 ```shell
-brew install python3 verilator
+brew install python3
 ```
 
 [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
