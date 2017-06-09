@@ -123,7 +123,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
                     source.add_line(astor.to_source(statement).rstrip())
 
 
-        print(source)
+        # print(source)
         tree.body = ast.parse(str(source)).body
         tree.decorator_list = [ast.Name("circuit", ast.Load())]
         if clock_enable:
@@ -131,10 +131,10 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         if DEBUG_STATE:
             tree.args.args.append(ast.arg("state_out", ast.parse("Out(Array({}, Bit))".format(num_states)).body[0].value))
         tree = specialize_compares_with_increments(tree)
-        print(astor.to_source(tree))
+        # print(astor.to_source(tree))
         source, name = process_circuit_ast(tree)
-        for i, line in enumerate(source.splitlines()):
-            print("{} {}".format(i + 1, line))
+        # for i, line in enumerate(source.splitlines()):
+        #     print("{} {}".format(i + 1, line))
         exec(source, func_globals, func_locals)
         return eval(name, func_globals, func_locals)
 

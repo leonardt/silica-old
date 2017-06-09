@@ -14,10 +14,12 @@ def test_uart():
             simulator.step()
             simulator.evaluate()
     scope = Scope()
-    expected = [0] + int2seq(94, 8) + [1]
-    for h in range(2):
+    expected_bytes = []
+    for char in uart_example.message:
+        expected_bytes.append([0] + int2seq(ord(char), 8) + [1, 1])  # Extra stop bit because the example holds the line high an extra buad tick
+    for expected in expected_bytes:
         actual = []
-        for _ in range(len(expected)):
+        for _ in range(11):
             for j in range(103 * 2):
                 simulator.step()
                 simulator.evaluate()
