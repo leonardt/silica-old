@@ -1,14 +1,15 @@
+import tempfile
+from copy import deepcopy
+
 import ast
 import astor
 from silica.transformations import specialize_constants, replace_symbols, constant_fold
 from silica.visitors import collect_names
-from silica.cfg.types import Block, BasicBlock, Yield, Branch, HeadBlock, State
-import tempfile
-from copy import deepcopy
+from silica.cfg.types import BasicBlock, Yield, Branch, HeadBlock, State
 
 
 class ControlFlowGraph(ast.NodeVisitor):
-    def __init__(self, tree, clock_enable):
+    def __init__(self, tree):
         super()
         self.blocks = []
         self.curr_block = None
@@ -23,91 +24,32 @@ class ControlFlowGraph(ast.NodeVisitor):
                 inputs.add(arg.arg)
             else:
                 assert False
-        self.visit(tree)
+        self.build(tree)
         self.bypass_conds()
         try:
             paths = self.collect_paths_between_yields()
-        except RecursionError as e:
+        except RecursionError as error:
             # Most likely infinite loop in CFG, should catch this with an analysis phase
             self.render()
-            raise e
-        paths = self.promote_live_variables(paths)
-        paths, state_vars = self.append_state_info(paths, outputs, inputs)
+            raise error
+        paths = promote_live_variables(paths)
+        paths, state_vars = append_state_info(paths, outputs, inputs)
         self.paths = paths
         self.state_vars = state_vars
 
-        # self.render_paths_between_yields(self.paths)
+        # render_paths_between_yields(self.paths)
         # exit()
 
-    def append_state_info(self, paths, outputs, inputs):
-        for path in paths:
-            state = State()
-            if isinstance(path[0], HeadBlock):
-                yield_id = 0
-            else:
-                yield_id = path[0].yield_id
-            state.yield_state = ast.Compare(ast.Name("yield_state", ast.Load()), [ast.Eq()], [ast.Num(yield_id)],)
-            for i in range(1, len(path)):
-                block = path[i]
-                if isinstance(block, Branch):
-                    cond = block.cond
-                    if path[i + 1] is block.false_edge:
-                        cond = ast.UnaryOp(ast.Invert(), cond)
-                    state.conds.append(cond)
-            state.statements.append(ast.Assign([ast.Name("yield_state", ast.Store())], ast.Num(path[-1].yield_id)))
-            path.append(state)
-        state_vars = {"yield_state"}
-        for path in paths:
-            state = path[-1]
-            for cond in state.conds:
-                names = collect_names(cond)
-                for name in names:
-                    if name not in outputs and \
-                       name not in inputs:
-                        state_vars.update(names)
-        for path in paths:
-            state = path[-1]
-            seen = {"yield_state"}
-            for block in path[:-1]:
-                if isinstance(block, BasicBlock):
-                    for statement in block.statements:
-                        if isinstance(statement, ast.Assign):
-                            target = statement.targets[0]
-                        elif isinstance(statement, ast.AugAssign):
-                            target = statement.target
-                        else:
-                            raise NotImplementedError
-                        if isinstance(target, ast.Name):
-                            seen.add(target.id)
-                        state.statements.append(statement)
-            # for output in outputs:
-            #     if output not in seen:
-            #         state.statements.append(ast.Assign([ast.Name(output, ast.Store())], ast.Name(output + "_last", ast.Load())))
-            # for state_var in state_vars:
-            #     if state_var not in seen:
-            #         state.statements.append(ast.Assign([ast.Name(state_var, ast.Store())], ast.Name(state_var + "_last", ast.Load())))
-        return paths, state_vars
-
-
-    def promote_live_variables(self, paths):
-        for path in paths:
-            symbol_table = {}
-            for block in path:
-                if isinstance(block, BasicBlock):
-                    new_statements = []
-                    for statement in block.statements:
-                        statement = replace_symbols(statement, symbol_table, ctx=ast.Load)
-                        statement = constant_fold(statement)
-                        if isinstance(statement, ast.Assign) and \
-                           len(statement.targets) == 1 and \
-                           isinstance(statement.targets[0], ast.Name):
-                            symbol_table[statement.targets[0].id] = statement.value
-                        new_statements.append(statement)
-                    block.statements = new_statements
-                elif isinstance(block, Branch):
-                    block.cond = replace_symbols(block.cond, symbol_table, ctx=ast.Load)
-                    block.cond = constant_fold(block.cond)
-        return paths
+    def build(self, func_def):
+        assert isinstance(func_def, ast.FunctionDef)
+        self.head_block = HeadBlock()
+        self.blocks.append(self.head_block)
+        self.curr_block = self.get_new_block()
+        add_edge(self.head_block, self.curr_block)
+        for stmt in func_def.body:
+            self.process_stmt(stmt)
+        self.consolidate_empty_blocks()
+        self.remove_if_trues()
 
 
     def find_paths(self, block):
@@ -134,23 +76,11 @@ class ControlFlowGraph(ast.NodeVisitor):
         return paths
 
 
-    def collect_constant_assigns(self, statements):
-        constant_assigns = {}
-        for stmt in statements:
-            if isinstance(stmt, ast.Assign):
-                if isinstance(stmt.value, ast.Num) and len(stmt.targets) == 1:
-                    if isinstance(stmt.targets[0], ast.Name):
-                        constant_assigns[stmt.targets[0].id] = stmt.value.n
-                    else:
-                        # TODO: This should already be guaranteed by a type checker
-                        assert stmt.targets[0].name in constant_assigns, "Assigned to multiple constants"
-        return constant_assigns
-
     def bypass_conds(self):
         for block in self.blocks:
             if isinstance(block, BasicBlock) and \
                isinstance(block.outgoing_edge[0], Branch):
-                constants = self.collect_constant_assigns(block.statements)
+                constants = collect_constant_assigns(block.statements)
                 branch = block.outgoing_edge[0]
                 cond = deepcopy(branch.cond)
                 cond = specialize_constants(cond, constants)
@@ -160,7 +90,7 @@ class ControlFlowGraph(ast.NodeVisitor):
                         block.outgoing_edges = {(branch.true_edge, "")}
                     else:
                         block.outgoing_edges = {(branch.false_edge, "")}
-                except NameError as e:
+                except NameError:
                     pass
 
 
@@ -181,72 +111,43 @@ class ControlFlowGraph(ast.NodeVisitor):
         self.blocks.append(block)
         return block
 
-    def add_edge(self, source, sink, label=""):
-        source.add_outgoing_edge(sink, label)
-        sink.add_incoming_edge(source, label)
-        # self.edges.append((source, sink, label))
-
-    def add_true_edge(self, source, sink):
-        assert isinstance(source, Branch)
-        source.add_outgoing_edge(sink, "T")
-        source.true_edge = sink
-        sink.add_incoming_edge(source, "T")
-
-    def add_false_edge(self, source, sink):
-        assert isinstance(source, Branch)
-        source.add_outgoing_edge(sink, "F")
-        source.false_edge = sink
-        sink.add_incoming_edge(source, "F")
-
     def process_stmt(self, stmt):
-        # TODO: Should be able to refactor this to reuse logic for "branching"
-        # nodes
-        if isinstance(stmt, ast.While):
+        if isinstance(stmt, (ast.While, ast.If)):
             old_block = self.curr_block
             self.curr_block = self.new_branch(stmt.test)
-            self.add_edge(old_block, self.curr_block)
-            # self.curr_block.add(stmt)
-            # self.curr_block.add(ast.If(stmt.test, [], []))
+            add_edge(old_block, self.curr_block)
             old_block = self.curr_block
             self.curr_block = self.get_new_block()
-            self.add_true_edge(old_block, self.curr_block)
+            add_true_edge(old_block, self.curr_block)
             for sub_stmt in stmt.body:
                 self.process_stmt(sub_stmt)
-            self.add_edge(self.curr_block, old_block)
-            self.curr_block = self.get_new_block()
-            self.add_false_edge(old_block, self.curr_block)
-        elif isinstance(stmt, (ast.If,)):
-            old_block = self.curr_block
-            self.curr_block = self.new_branch(stmt.test)
-            self.add_edge(old_block, self.curr_block)
-            # self.curr_block.add(stmt)
-            old_block = self.curr_block
-            self.curr_block = self.get_new_block()
-            self.add_true_edge(old_block, self.curr_block)
-            for sub_stmt in stmt.body:
-                self.process_stmt(sub_stmt)
-            end_then_block = self.curr_block
-            if len(stmt.orelse) > 0:
+            if isinstance(stmt, ast.While):
+                add_edge(self.curr_block, old_block)
                 self.curr_block = self.get_new_block()
-                self.add_false_edge(old_block, self.curr_block)
-                for sub_stmt in stmt.orelse:
-                    self.process_stmt(sub_stmt)
-                end_else_block = self.curr_block
-            self.curr_block = self.get_new_block()
-            self.add_edge(end_then_block, self.curr_block)
-            if len(stmt.orelse) > 0:
-                self.add_edge(end_else_block, self.curr_block)
-            else:
-                self.add_false_edge(old_block, self.curr_block)
+                add_false_edge(old_block, self.curr_block)
+            elif isinstance(stmt, (ast.If,)):
+                end_then_block = self.curr_block
+                if stmt.orelse:
+                    self.curr_block = self.get_new_block()
+                    add_false_edge(old_block, self.curr_block)
+                    for sub_stmt in stmt.orelse:
+                        self.process_stmt(sub_stmt)
+                    end_else_block = self.curr_block
+                self.curr_block = self.get_new_block()
+                add_edge(end_then_block, self.curr_block)
+                if stmt.orelse:
+                    add_edge(end_else_block, self.curr_block)
+                else:
+                    add_false_edge(old_block, self.curr_block)
         elif isinstance(stmt, ast.Expr):
             if isinstance(stmt.value, ast.Yield):
                 old_block = self.curr_block
                 self.curr_block = self.new_yield()
-                self.add_edge(old_block, self.curr_block)
+                add_edge(old_block, self.curr_block)
                 old_block = self.curr_block
                 self.curr_block = self.get_new_block()
-                self.add_edge(old_block, self.curr_block)
-            elif isinstance(stmt.value, ast.Str): 
+                add_edge(old_block, self.curr_block)
+            elif isinstance(stmt.value, ast.Str):
                 # Docstring, ignore
                 pass
             else:  # pragma: no cover
@@ -263,7 +164,7 @@ class ControlFlowGraph(ast.NodeVisitor):
             if isinstance(source, Branch):
                 if len(block.outgoing_edges) == 1:
                     sink, sink_label = list(block.outgoing_edges)[0]
-                    self.add_edge(source, sink, source_label)
+                    add_edge(source, sink, source_label)
                     if source_label == "F":
                         source.false_edge = sink
                     elif source_label == "T":
@@ -271,15 +172,15 @@ class ControlFlowGraph(ast.NodeVisitor):
                     else:  # pragma: no cover
                         assert False
                 else:
-                    assert len(block.outgoing_edges) == 0
+                    assert not block.outgoing_edges
             else:
                 for sink, sink_label in block.outgoing_edges:
-                    self.add_edge(source, sink, source_label)
+                    add_edge(source, sink, source_label)
 
     def consolidate_empty_blocks(self):
         new_blocks = []
         for block in self.blocks:
-            if isinstance(block, BasicBlock) and len(block.statements) == 0:
+            if isinstance(block, BasicBlock) and not block.statements:
                 self.remove_block(block)
             else:
                 new_blocks.append(block)
@@ -289,21 +190,11 @@ class ControlFlowGraph(ast.NodeVisitor):
         new_blocks = []
         for block in self.blocks:
             if isinstance(block, Branch) and (isinstance(block.cond, ast.NameConstant) \
-                    and block.cond.value == True):
+                    and block.cond.value is True):
                 self.remove_block(block)
             else:
                 new_blocks.append(block)
         self.blocks = new_blocks
-
-    def visit_FunctionDef(self, node):
-        self.head_block = HeadBlock()
-        self.blocks.append(self.head_block)
-        self.curr_block = self.get_new_block()
-        self.add_edge(self.head_block, self.curr_block)
-        for stmt in node.body:
-            self.process_stmt(stmt)
-        self.consolidate_empty_blocks()
-        self.remove_if_trues()
 
     def render(self):  # pragma: no cover
         from graphviz import Digraph
@@ -317,10 +208,10 @@ class ControlFlowGraph(ast.NodeVisitor):
                 dot.node(str(id(block)), label.rstrip(), {"shape": "oval"})
             elif isinstance(block, BasicBlock):
                 label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
-                dot.node(str(id(block)), label.rstrip(), {"shape": "box"}) 
+                dot.node(str(id(block)), label.rstrip(), {"shape": "box"})
             elif isinstance(block, HeadBlock):
                 label = "Initial"
-                dot.node(str(id(block)), label.rstrip(), {"shape": "doublecircle"}) 
+                dot.node(str(id(block)), label.rstrip(), {"shape": "doublecircle"})
             else:
                 raise NotImplementedError(type(block))
         # for source, sink, label in self.edges:
@@ -333,44 +224,144 @@ class ControlFlowGraph(ast.NodeVisitor):
         # print(file_name)
         # exit()
 
-    def render_paths_between_yields(self, paths):  # pragma: no cover
-        from graphviz import Digraph
-        dot = Digraph(name="top")
-        for i, path in enumerate(paths):
-            prev = None
-            for block in path:
-                if isinstance(block, Branch):
-                    label = "if " + astor.to_source(block.cond)
-                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "invhouse"})
-                elif isinstance(block, Yield):
-                    label = "yield {}".format(block.yield_id)
-                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "oval"})
-                elif isinstance(block, BasicBlock):
-                    label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
-                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "box"}) 
-                elif isinstance(block, HeadBlock):
-                    label = "Initial"
-                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doublecircle"}) 
-                elif isinstance(block, State):
-                    label = "{}".format(astor.to_source(block.yield_state).rstrip())
-                    if len(block.conds) > 0:
-                        label += " && "
-                    label += " && ".join(astor.to_source(cond) for cond in block.conds)
-                    label += "\n"
-                    label += "\n".join(astor.to_source(statement) for statement in block.statements)
-                    dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doubleoctagon"})
-                else:
-                    raise NotImplementedError(type(block))
-                if prev is not None:
-                    if isinstance(prev, Branch):
-                        if block is prev.false_edge:
-                            label = "F"
-                        else:
-                            label = "T"
+def render_paths_between_yields(paths):  # pragma: no cover
+    from graphviz import Digraph
+    dot = Digraph(name="top")
+    for i, path in enumerate(paths):
+        prev = None
+        for block in path:
+            if isinstance(block, Branch):
+                label = "if " + astor.to_source(block.cond)
+                dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "invhouse"})
+            elif isinstance(block, Yield):
+                label = "yield {}".format(block.yield_id)
+                dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "oval"})
+            elif isinstance(block, BasicBlock):
+                label = "\n".join(astor.to_source(stmt) for stmt in block.statements)
+                dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "box"})
+            elif isinstance(block, HeadBlock):
+                label = "Initial"
+                dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doublecircle"})
+            elif isinstance(block, State):
+                label = "{}".format(astor.to_source(block.yield_state).rstrip())
+                if block.conds:
+                    label += " && "
+                label += " && ".join(astor.to_source(cond) for cond in block.conds)
+                label += "\n"
+                label += "\n".join(astor.to_source(statement) for statement in block.statements)
+                dot.node(str(i) + str(id(block)), label.rstrip(), {"shape": "doubleoctagon"})
+            else:
+                raise NotImplementedError(type(block))
+            if prev is not None:
+                if isinstance(prev, Branch):
+                    if block is prev.false_edge:
+                        label = "F"
                     else:
-                        label = ""
-                    dot.edge(str(i) + str(id(prev)), str(i) + str(id(block)), label)
-                prev = block
+                        label = "T"
+                else:
+                    label = ""
+                dot.edge(str(i) + str(id(prev)), str(i) + str(id(block)), label)
+            prev = block
 
-        file_name = tempfile.mktemp("gv")
-        dot.render(file_name, view=True)
+    file_name = tempfile.mktemp("gv")
+    dot.render(file_name, view=True)
+
+def add_edge(source, sink, label=""):
+    source.add_outgoing_edge(sink, label)
+    sink.add_incoming_edge(source, label)
+
+def add_true_edge(source, sink):
+    assert isinstance(source, Branch)
+    source.add_outgoing_edge(sink, "T")
+    source.true_edge = sink
+    sink.add_incoming_edge(source, "T")
+
+def add_false_edge(source, sink):
+    assert isinstance(source, Branch)
+    source.add_outgoing_edge(sink, "F")
+    source.false_edge = sink
+    sink.add_incoming_edge(source, "F")
+
+def collect_constant_assigns(statements):
+    constant_assigns = {}
+    for stmt in statements:
+        if isinstance(stmt, ast.Assign):
+            if isinstance(stmt.value, ast.Num) and len(stmt.targets) == 1:
+                if isinstance(stmt.targets[0], ast.Name):
+                    constant_assigns[stmt.targets[0].id] = stmt.value.n
+                else:
+                    # TODO: This should already be guaranteed by a type checker
+                    assert stmt.targets[0].name in constant_assigns, \
+                           "Assigned to multiple constants"
+    return constant_assigns
+
+
+def promote_live_variables(paths):
+    for path in paths:
+        symbol_table = {}
+        for block in path:
+            if isinstance(block, BasicBlock):
+                new_statements = []
+                for statement in block.statements:
+                    statement = replace_symbols(statement, symbol_table, ctx=ast.Load)
+                    statement = constant_fold(statement)
+                    if isinstance(statement, ast.Assign) and \
+                       len(statement.targets) == 1 and \
+                       isinstance(statement.targets[0], ast.Name):
+                        symbol_table[statement.targets[0].id] = statement.value
+                    new_statements.append(statement)
+                block.statements = new_statements
+            elif isinstance(block, Branch):
+                block.cond = replace_symbols(block.cond, symbol_table, ctx=ast.Load)
+                block.cond = constant_fold(block.cond)
+    return paths
+
+def append_state_info(paths, outputs, inputs):
+    for path in paths:
+        state = State()
+        if isinstance(path[0], HeadBlock):
+            yield_id = 0
+        else:
+            yield_id = path[0].yield_id
+        state.yield_state = ast.Compare(
+            ast.Name("yield_state", ast.Load()),
+            [ast.Eq()],
+            [ast.Num(yield_id)]
+        )
+        for i in range(1, len(path)):
+            block = path[i]
+            if isinstance(block, Branch):
+                cond = block.cond
+                if path[i + 1] is block.false_edge:
+                    cond = ast.UnaryOp(ast.Invert(), cond)
+                state.conds.append(cond)
+        state.statements.append(ast.Assign(
+            [ast.Name("yield_state", ast.Store())],
+            ast.Num(path[-1].yield_id)
+        ))
+        path.append(state)
+    state_vars = {"yield_state"}
+    for path in paths:
+        state = path[-1]
+        for cond in state.conds:
+            names = collect_names(cond)
+            for name in names:
+                if name not in outputs and \
+                   name not in inputs:
+                    state_vars.update(names)
+    for path in paths:
+        state = path[-1]
+        seen = {"yield_state"}
+        for block in path[:-1]:
+            if isinstance(block, BasicBlock):
+                for statement in block.statements:
+                    if isinstance(statement, ast.Assign):
+                        target = statement.targets[0]
+                    elif isinstance(statement, ast.AugAssign):
+                        target = statement.target
+                    else:
+                        raise NotImplementedError
+                    if isinstance(target, ast.Name):
+                        seen.add(target.id)
+                    state.statements.append(statement)
+    return paths, state_vars

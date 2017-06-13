@@ -43,7 +43,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         local_vars.update(loopvars)
 
         local_vars = list(sorted(loopvars))
-        cfg = ControlFlowGraph(tree, clock_enable)
+        cfg = ControlFlowGraph(tree)
         if render_cfg:
             cfg.render()  # pragma: no cover
         if backend == "magma":
