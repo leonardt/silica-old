@@ -49,12 +49,12 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         if backend == "magma":
             return silica.backend.magma.compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals)
         elif backend == "verilog":
-            return silica.backend.verilog.compile(cfg)
+            return silica.backend.verilog.compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals, file_dir)
         raise NotImplementedError(backend)
         # return backend.compile(cfg)
 
 
-def fsm(mode_or_fn="magma", clock_enable=False, render_cfg=False):
+def fsm(mode_or_fn="verilog", clock_enable=False, render_cfg=False):
     stack = inspect.stack()
     func_locals = stack[1].frame.f_locals
     func_globals = stack[1].frame.f_globals
