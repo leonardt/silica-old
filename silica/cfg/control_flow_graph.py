@@ -39,34 +39,6 @@ class ControlFlowGraph(ast.NodeVisitor):
         # self.render_paths_between_yields(self.paths)
         # exit()
 
-        # state_width = (len(paths) - 1).bit_length()
-        # source = "reg [{}:0] yield_state;\n".format(state_width - 1)
-        # source += "initial begin\n    yield_state = 0;\nend\n"
-        # for var in sorted(state_vars):  # Sort for regression tests
-        #     if var != "yield_state":
-        #         width = local_widths[var]
-        #         source += "reg [{}:0] {};\n".format(width - 1, var)
-        # if clock_enable:
-        #     source += "always @(posedge CLKIN) if (clock_enable) begin\n"
-        # else:
-        #     source += "always @(posedge CLKIN) begin\n"
-        # for path in paths:
-        #     state = path[-1]
-        #     prog = "if ({}".format(astor.to_source(state.yield_state).rstrip())
-        #     if len(state.conds) > 0:
-        #         prog += " && "
-        #     prog += " && ".join(astor.to_source(cond) for cond in state.conds).rstrip()
-        #     prog += ") begin \n    "
-        #     prog += ";\n    ".join(astor.to_source(statement).rstrip() for statement in state.statements)
-        #     prog += ";\nend\n"
-        #     prog = prog.replace("~", "!")
-        #     prog = prog.replace(" = ", " <= ")
-        #     prog = prog.replace("and", "&&")
-        #     prog = "\n    ".join(prog.splitlines())
-        #     source += "    " + prog + "\n"
-        # source += "end\n"
-        # self.source = source
-
     def append_state_info(self, paths, outputs, inputs):
         for path in paths:
             state = State()
