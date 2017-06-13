@@ -6,7 +6,7 @@ sys.path.append('../examples')
 
 
 def test_uart():
-    import examples.uart.uart as uart_example
+    import examples.uart.magma.uart as uart_example
     simulator = PythonSimulator(uart_example.main)
     # TODO: Why do we need to warm up with two clock cycles?
     for _ in range(2):
