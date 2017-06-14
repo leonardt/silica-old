@@ -3,9 +3,60 @@ from copy import deepcopy
 
 import ast
 import astor
+import magma
+
 from silica.transformations import specialize_constants, replace_symbols, constant_fold
 from silica.visitors import collect_names
 from silica.cfg.types import BasicBlock, Yield, Branch, HeadBlock, State
+
+
+def parse_arguments(arguments):
+    """
+    arguments : a list of ast.arg nodes each annotated with a magma In or Out type
+
+    return    : a tuple (inputs, outputs), where inputs and outputs sets of
+                strings containing the input and output arguments respectively
+    """
+    outputs = set()
+    inputs = set()
+    for arg in arguments:
+        _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
+        if _type.isoutput():
+            outputs.add(arg.arg)
+        else:
+            assert _type.isinput()
+            inputs.add(arg.arg)
+    return inputs, outputs
+
+
+def add_edge(source, sink, label=""):
+    """
+    Add an edge between source and sink with label
+    """
+    source.add_outgoing_edge(sink, label)
+    sink.add_incoming_edge(source, label)
+
+
+def add_true_edge(source, sink):
+    """
+    Add an edge form source to sink with label="T" and set the `true_edge`
+    attribute on source
+    """
+    assert isinstance(source, Branch)
+    source.add_outgoing_edge(sink, "T")
+    source.true_edge = sink
+    sink.add_incoming_edge(source, "T")
+
+
+def add_false_edge(source, sink):
+    """
+    Add an edge from source to sink with label="F" and set the `false_edge`
+    attribute on source
+    """
+    assert isinstance(source, Branch)
+    source.add_outgoing_edge(sink, "F")
+    source.false_edge = sink
+    sink.add_incoming_edge(source, "F")
 
 
 class ControlFlowGraph:
@@ -14,21 +65,13 @@ class ControlFlowGraph:
         self.curr_block = None
         self.curr_yield_id = 1
 
-        outputs = set()
-        inputs = set()
-        for arg in tree.args.args:
-            if "Out" in astor.to_source(arg.annotation):
-                outputs.add(arg.arg)
-            elif "In" in astor.to_source(arg.annotation):
-                inputs.add(arg.arg)
-            else:
-                assert False
+        inputs, outputs = parse_arguments(tree.args.args)
         self.build(tree)
         self.bypass_conds()
         try:
             paths = self.collect_paths_between_yields()
         except RecursionError as error:
-            # Most likely infinite loop in CFG, should catch this with an analysis phase
+            # Most likely infinite loop in CFG, TODO: should catch this with an analysis phase
             self.render()
             raise error
         paths = promote_live_variables(paths)
@@ -264,22 +307,6 @@ def render_paths_between_yields(paths):  # pragma: no cover
 
     file_name = tempfile.mktemp("gv")
     dot.render(file_name, view=True)
-
-def add_edge(source, sink, label=""):
-    source.add_outgoing_edge(sink, label)
-    sink.add_incoming_edge(source, label)
-
-def add_true_edge(source, sink):
-    assert isinstance(source, Branch)
-    source.add_outgoing_edge(sink, "T")
-    source.true_edge = sink
-    sink.add_incoming_edge(source, "T")
-
-def add_false_edge(source, sink):
-    assert isinstance(source, Branch)
-    source.add_outgoing_edge(sink, "F")
-    source.false_edge = sink
-    sink.add_incoming_edge(source, "F")
 
 def collect_constant_assigns(statements):
     constant_assigns = {}

@@ -22,6 +22,14 @@ def round_to_next_power_of_two(x):
     return 1<<(x-1).bit_length()
 
 
+def validate_arguments(func):
+    assert isinstance(func, ast.FunctionDef)
+    for arg in func.args.args:
+        _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
+        if not isinstance(_type, magma.t.Type):
+            raise Exception("Invalid type {} for argument {}".format(str(_type), arg.arg))
+
+
 def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=False):
         constants = {}
         for name, value in func_locals.items():
@@ -33,6 +41,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         # `ast_utils.get_ast` returns a module so grab first statement in body
         tree = ast_utils.get_ast(f).body[0]  
         func_name = tree.name
+        validate_arguments(tree)
 
         local_vars = set()
         tree           = specialize_constants(tree, constants)
