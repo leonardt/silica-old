@@ -198,6 +198,10 @@ class ControlFlowGraph:
             self.curr_block.add(stmt)
 
     def remove_block(self, block):
+        """
+        Removes `block` from the control flow graph and collapses incoming
+        edges to outgoing edges.
+        """
         for source, source_label in block.incoming_edges:
             source.outgoing_edges.remove((block, source_label))
         for sink, sink_label in block.outgoing_edges:
@@ -220,6 +224,9 @@ class ControlFlowGraph:
                     add_edge(source, sink, source_label)
 
     def consolidate_empty_blocks(self):
+        """
+        Remove any empty basic blocks
+        """
         new_blocks = []
         for block in self.blocks:
             if isinstance(block, BasicBlock) and not block.statements:
@@ -229,6 +236,9 @@ class ControlFlowGraph:
         self.blocks = new_blocks
 
     def remove_if_trues(self):
+        """
+        Remove any if true blocks
+        """
         new_blocks = []
         for block in self.blocks:
             if isinstance(block, Branch) and (isinstance(block.cond, ast.NameConstant) \
@@ -239,6 +249,9 @@ class ControlFlowGraph:
         self.blocks = new_blocks
 
     def render(self):  # pragma: no cover
+        """
+        Render the control flow graph using graphviz
+        """
         from graphviz import Digraph
         dot = Digraph(name="top")
         for block in self.blocks:
@@ -267,6 +280,9 @@ class ControlFlowGraph:
         # exit()
 
 def render_paths_between_yields(paths):  # pragma: no cover
+    """
+    Render all the paths between yields using graphviz
+    """
     from graphviz import Digraph
     dot = Digraph(name="top")
     for i, path in enumerate(paths):
