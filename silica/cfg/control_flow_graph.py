@@ -8,9 +8,8 @@ from silica.visitors import collect_names
 from silica.cfg.types import BasicBlock, Yield, Branch, HeadBlock, State
 
 
-class ControlFlowGraph(ast.NodeVisitor):
+class ControlFlowGraph:
     def __init__(self, tree):
-        super()
         self.blocks = []
         self.curr_block = None
         self.curr_yield_id = 1

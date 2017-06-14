@@ -2,11 +2,14 @@ from magma import *
 from magma.python_simulator import PythonSimulator
 from magma.scope import Scope
 import sys
-sys.path.append('../examples')
+# Add the examples directory to path so we can import them
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "examples"))
 
 
 def test_uart():
-    import examples.uart.magma.uart as uart_example
+    import uart.magma.uart as uart_example
     simulator = PythonSimulator(uart_example.main)
     # TODO: Why do we need to warm up with two clock cycles?
     for _ in range(2):
