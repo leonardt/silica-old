@@ -23,11 +23,22 @@ def round_to_next_power_of_two(x):
 
 
 def validate_arguments(func):
+    """
+    Catch bad (non-magma) types in FSM definitions
+    """
     assert isinstance(func, ast.FunctionDef)
     for arg in func.args.args:
-        _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
-        if not isinstance(_type, magma.t.Type):
-            raise Exception("Invalid type {} for argument {}".format(str(_type), arg.arg))
+        try:
+            _type = eval(astor.to_source(arg.annotation), globals(), magma.__dict__)()
+            if not isinstance(_type, magma.t.Type):
+                raise Exception
+        except Exception:
+            # We catch then reraise an exception here because an exception can
+            # be raised in the eval logic before we even get to check if it's a
+            # magma type
+            raise Exception(
+                "Invalid type {} for argument {}".format(
+                    astor.to_source(arg.annotation).rstrip(), arg.arg))
 
 
 def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=False):
