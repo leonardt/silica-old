@@ -146,32 +146,47 @@ class ControlFlowGraph:
         self.blocks.append(block)
         return block
 
-    def new_yield(self):
-        block = Yield()
-        block.yield_id = self.curr_yield_id
+    def add_new_yield(self):
+        old_block = self.curr_block
+        self.curr_block = Yield()
+        self.blocks.append(self.curr_block)
+        # We need unique ids for each yield in the current cfg
+        self.curr_block.yield_id = self.curr_yield_id
         self.curr_yield_id += 1
-        self.blocks.append(block)
-        return block
+
+        add_edge(old_block, self.curr_block)
+        old_block = self.curr_block
+        self.curr_block = self.get_new_block()
+        add_edge(old_block, self.curr_block)
+
+    def add_new_branch(self, test):
+        old_block = self.curr_block
+        # First we create an explicit branch node
+        self.curr_block = self.new_branch(test)
+        add_edge(old_block, self.curr_block)
+        branch = self.curr_block
+        # Then we add a basic block for the true edge
+        self.curr_block = self.get_new_block()
+        add_true_edge(branch, self.curr_block)
+        # Note we add the block for the false edge later
+        # TODO: This is confusing, can we make it simpler?
+        return branch
 
     def process_stmt(self, stmt):
         if isinstance(stmt, (ast.While, ast.If)):
-            old_block = self.curr_block
-            self.curr_block = self.new_branch(stmt.test)
-            add_edge(old_block, self.curr_block)
-            old_block = self.curr_block
-            self.curr_block = self.get_new_block()
-            add_true_edge(old_block, self.curr_block)
+            # Emit new blocks for the branching instruction
+            branch = self.add_new_branch(stmt.test)
             for sub_stmt in stmt.body:
                 self.process_stmt(sub_stmt)
             if isinstance(stmt, ast.While):
-                add_edge(self.curr_block, old_block)
+                add_edge(self.curr_block, branch)
                 self.curr_block = self.get_new_block()
-                add_false_edge(old_block, self.curr_block)
+                add_false_edge(branch, self.curr_block)
             elif isinstance(stmt, (ast.If,)):
                 end_then_block = self.curr_block
                 if stmt.orelse:
                     self.curr_block = self.get_new_block()
-                    add_false_edge(old_block, self.curr_block)
+                    add_false_edge(branch, self.curr_block)
                     for sub_stmt in stmt.orelse:
                         self.process_stmt(sub_stmt)
                     end_else_block = self.curr_block
@@ -180,21 +195,17 @@ class ControlFlowGraph:
                 if stmt.orelse:
                     add_edge(end_else_block, self.curr_block)
                 else:
-                    add_false_edge(old_block, self.curr_block)
+                    add_false_edge(branch, self.curr_block)
         elif isinstance(stmt, ast.Expr):
             if isinstance(stmt.value, ast.Yield):
-                old_block = self.curr_block
-                self.curr_block = self.new_yield()
-                add_edge(old_block, self.curr_block)
-                old_block = self.curr_block
-                self.curr_block = self.get_new_block()
-                add_edge(old_block, self.curr_block)
+                self.add_new_yield()
             elif isinstance(stmt.value, ast.Str):
                 # Docstring, ignore
                 pass
             else:  # pragma: no cover
                 raise NotImplementedError(stmt.value)
         else:
+            # Append a normal statement to the current block
             self.curr_block.add(stmt)
 
     def remove_block(self, block):
