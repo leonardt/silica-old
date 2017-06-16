@@ -9,9 +9,9 @@ hardware finite state machines.
 Requires Python 3.5+
 # Setup
 ## Prerequisits
-* Python 3
+* Python 3  
   Recommended portable installation method is using [miniconda](https://conda.io/miniconda.html)
-* (Optional) graphviz
+* (Optional) [graphviz](http://www.graphviz.org/)  
   For rendering control flow graphs
 
 Install Python dependencies
