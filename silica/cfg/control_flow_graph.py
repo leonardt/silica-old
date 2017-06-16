@@ -86,7 +86,7 @@ class ControlFlowGraph:
         assert isinstance(func_def, ast.FunctionDef)
         self.head_block = HeadBlock()
         self.blocks.append(self.head_block)
-        self.curr_block = self.get_new_block()
+        self.curr_block = self.gen_new_block()
         add_edge(self.head_block, self.curr_block)
         for stmt in func_def.body:
             self.process_stmt(stmt)
@@ -136,37 +136,53 @@ class ControlFlowGraph:
                     pass
 
 
-    def get_new_block(self):
+    def gen_new_block(self):
         block = BasicBlock()
         self.blocks.append(block)
         return block
 
-    def new_branch(self, test):
-        block = Branch(test)
-        self.blocks.append(block)
-        return block
+    def add_new_block(self):
+        """
+        Generate a new BasicBlock in the control flow graph and add an edge
+        from the current block to this new block
+        """
+        old_block = self.curr_block
+        self.curr_block = self.gen_new_block()
+        add_edge(old_block, self.curr_block)
 
     def add_new_yield(self):
+        """
+        Adds a new Yield block and edge from the current block to the new Yield
+        block. Then generates a new BasicBlock and adds an edge from the Yield
+        block to the new BasicBlock
+        """
         old_block = self.curr_block
         self.curr_block = Yield()
+        add_edge(old_block, self.curr_block)
         self.blocks.append(self.curr_block)
         # We need unique ids for each yield in the current cfg
         self.curr_block.yield_id = self.curr_yield_id
         self.curr_yield_id += 1
 
-        add_edge(old_block, self.curr_block)
-        old_block = self.curr_block
-        self.curr_block = self.get_new_block()
-        add_edge(old_block, self.curr_block)
+        self.add_new_block()
 
     def add_new_branch(self, test):
+        """
+        Adds a new branch node to the CFG (and connects the current block to
+        it)
+        Generates a new basic block corresponding to the True edge of
+        the branch (sets self.curr_block to this True block). 
+        Returns the branch block so that the calling code can later on add a
+        false edge if necessary
+        """
         old_block = self.curr_block
         # First we create an explicit branch node
-        self.curr_block = self.new_branch(test)
+        self.curr_block = Branch(test)
+        self.blocks.append(self.curr_block)
         add_edge(old_block, self.curr_block)
         branch = self.curr_block
         # Then we add a basic block for the true edge
-        self.curr_block = self.get_new_block()
+        self.curr_block = self.gen_new_block()
         add_true_edge(branch, self.curr_block)
         # Note we add the block for the false edge later
         # TODO: This is confusing, can we make it simpler?
@@ -176,21 +192,26 @@ class ControlFlowGraph:
         if isinstance(stmt, (ast.While, ast.If)):
             # Emit new blocks for the branching instruction
             branch = self.add_new_branch(stmt.test)
-            for sub_stmt in stmt.body:
+            # stmt.body holds the True path for both If and While nodes
+            for sub_stmt in stmt.body:  
                 self.process_stmt(sub_stmt)
             if isinstance(stmt, ast.While):
+                # Exit the current basic block by looping back to the branch
+                # node
                 add_edge(self.curr_block, branch)
-                self.curr_block = self.get_new_block()
+                # Generate a new basic block and set the false edge of the
+                # branch to the new basic block (exiting the loop)
+                self.curr_block = self.gen_new_block()
                 add_false_edge(branch, self.curr_block)
             elif isinstance(stmt, (ast.If,)):
                 end_then_block = self.curr_block
                 if stmt.orelse:
-                    self.curr_block = self.get_new_block()
+                    self.curr_block = self.gen_new_block()
                     add_false_edge(branch, self.curr_block)
                     for sub_stmt in stmt.orelse:
                         self.process_stmt(sub_stmt)
                     end_else_block = self.curr_block
-                self.curr_block = self.get_new_block()
+                self.curr_block = self.gen_new_block()
                 add_edge(end_then_block, self.curr_block)
                 if stmt.orelse:
                     add_edge(end_else_block, self.curr_block)
