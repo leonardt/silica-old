@@ -7,24 +7,12 @@ Silica is a language embedded in Python that uses coroutines to describe
 hardware finite state machines.
 
 Requires Python 3.5+
-
-# Development Setup
-Ubuntu
-```shell
-sudo apt install python3
-```
-MacOS/Homebrew
-```shell
-brew install python3
-```
-
-[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
-is useful tool for managing project specific Python environments.
-```shell
-pip install virtualenvwrapper
-mkvirtualenv --python=python3 silica
-```
-Now you can use `workon silica` to activate the environment and `deactivate` to deactivate.
+# Setup
+## Prerequisits
+* Python 3
+  Recommended portable installation method is using [miniconda](https://conda.io/miniconda.html)
+* (Optional) graphviz
+  For rendering control flow graphs
 
 Install Python dependencies
 ```shell
