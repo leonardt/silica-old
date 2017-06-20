@@ -62,8 +62,10 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         tree, loopvars = desugar_for_loops(tree)
         local_vars.update(loopvars)
 
-        local_vars = list(sorted(loopvars))
         cfg = ControlFlowGraph(tree)
+        local_vars.update(cfg.local_vars)
+
+        local_vars = list(sorted(local_vars))
         if render_cfg:
             cfg.render()  # pragma: no cover
         if backend == "magma":

@@ -64,6 +64,8 @@ class ControlFlowGraph:
         self.blocks = []
         self.curr_block = None
         self.curr_yield_id = 1
+        self.initial_statements = None
+        self.local_vars = set()
 
         inputs, outputs = parse_arguments(tree.args.args)
         self.build(tree)
@@ -88,8 +90,16 @@ class ControlFlowGraph:
         self.blocks.append(self.head_block)
         self.curr_block = self.gen_new_block()
         add_edge(self.head_block, self.curr_block)
-        for stmt in func_def.body:
-            self.process_stmt(stmt)
+        self.initial_statements = func_def.body[:-1]
+        for statement in self.initial_statements:
+            if isinstance(statement, ast.Assign) and isinstance(statement.value, ast.Call) and \
+               isinstance(statement.value.func, ast.Name) and statement.value.func.id == "Register":
+                assert isinstance(statement.targets[0], ast.Name) and len(statement.targets) == 1
+                self.local_vars.add((statement.targets[0].id, statement.value.args[0].n))
+            else:
+                raise NotImplementedError()
+        assert isinstance(func_def.body[-1], ast.While), "FSMs should end with a `while True:`"
+        self.process_stmt(func_def.body[-1])
         self.consolidate_empty_blocks()
         self.remove_if_trues()
 
@@ -224,7 +234,8 @@ class ControlFlowGraph:
                 # Docstring, ignore
                 pass
             else:  # pragma: no cover
-                raise NotImplementedError(stmt.value)
+                self.curr_block.add(stmt)
+                # raise NotImplementedError(stmt.value)
         else:
             # Append a normal statement to the current block
             self.curr_block.add(stmt)
@@ -390,6 +401,11 @@ def promote_live_variables(paths):
                 block.cond = constant_fold(block.cond)
     return paths
 
+def is_shift_expr(node):
+    return isinstance(node, ast.Expr) and \
+           isinstance(node.value, ast.BinOp) and \
+           isinstance(node.value.op, ast.LShift)
+
 def append_state_info(paths, outputs, inputs):
     for path in paths:
         state = State()
@@ -433,8 +449,10 @@ def append_state_info(paths, outputs, inputs):
                         target = statement.targets[0]
                     elif isinstance(statement, ast.AugAssign):
                         target = statement.target
+                    elif is_shift_expr(statement):
+                        target = statement.value.left
                     else:
-                        raise NotImplementedError
+                        raise NotImplementedError(ast.dump(statement))
                     if isinstance(target, ast.Name):
                         seen.add(target.id)
                     state.statements.append(statement)
