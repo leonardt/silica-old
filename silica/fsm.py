@@ -10,7 +10,7 @@ import silica.backend.verilog as verilog
 from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
 import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
-    specialize_constants, replace_symbols, constant_fold
+    specialize_constants, replace_symbols, constant_fold, inline_yield_from_functions
 from silica.visitors import collect_names
 from silica.code_gen import Source
 import silica.ast_utils as ast_utils
@@ -57,6 +57,7 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         local_vars = set()
         tree           = specialize_constants(tree, constants)
         tree           = constant_fold(tree)
+        tree           = inline_yield_from_functions(tree, func_locals, func_globals)
         tree, loopvars = desugar_yield_from_range(tree)
         local_vars.update(loopvars)
         tree, loopvars = desugar_for_loops(tree)

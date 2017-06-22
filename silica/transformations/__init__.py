@@ -3,3 +3,4 @@ from silica.transformations.desugar_yield_from_range import desugar_yield_from_r
 from silica.transformations.specialize_constants import specialize_constants
 from silica.transformations.constant_fold import constant_fold
 from silica.transformations.replace_symbols import replace_symbols
+from silica.transformations.inline_functions import inline_yield_from_functions

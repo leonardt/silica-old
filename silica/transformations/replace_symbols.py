@@ -8,9 +8,13 @@ class SymbolReplacer(ast.NodeTransformer):
         self.ctx = ctx
 
     def visit_Name(self, node):
-        if node.id in self.symbol_table and (self.ctx is None or 
-                isinstance(node.ctx, self.ctx)):
-            return deepcopy(self.symbol_table[node.id])
+        if node.id in self.symbol_table:
+            if self.ctx is None:
+                new_node = deepcopy(self.symbol_table[node.id])
+                new_node.ctx = node.ctx
+                return new_node
+            elif isinstance(node.ctx, self.ctx):
+                return deepcopy(self.symbol_table[node.id])
         return node
 
 def replace_symbols(tree, symbol_table, ctx=None):

@@ -1,14 +1,14 @@
 from magma import *
 from mantle import *
+import silica
 from loam.boards.icestick import IceStick
-from silica import fsm
 import pickle
 
 from monitor import BAUD_RATE  # Defined in monitor.py
 CLOCK_RATE = int(12e6)  # 12 mhz
 
 
-@fsm(clock_enable=True)
+@silica.fsm(clock_enable=True)
 def uart_transmitter(data : In(Array(8, Bit)), 
                      run  : In(Bit), 
                      tx   : Out(Bit),
@@ -43,7 +43,19 @@ c2 = Counter(8)
 START_BYTE  = 0x61
 END_BYTE    = 0x62
 
-@fsm(clock_enable=True)
+@silica.inline
+def send_byte(byte : In(Array(8, Bit)),
+              out  : Out(Array(8, Bit)),
+              run  : Out(Bit),
+              done : In(Bit)):
+    out = byte
+    run = 1
+    yield
+    run = 0
+    while not done:
+        yield
+
+@silica.fsm(clock_enable=True)
 def send_message(send    : In(Bit),
                  message : In(Array(8, Bit)),
                  id      : In(Array(8, Bit)),
@@ -52,33 +64,10 @@ def send_message(send    : In(Bit),
                  done    : In(Bit)):
     while True:
         if send:
-            out = START_BYTE
-            run = 1
-            yield
-            run = 0
-            while not done:
-                yield
-
-            out = id
-            run = 1
-            yield
-            run = 0
-            while not done:
-                yield
-
-            out = message
-            run = 1
-            yield
-            run = 0
-            while not done:
-                yield
-
-            out = END_BYTE
-            run = 1
-            yield
-            run = 0
-            while not done:
-                yield
+            yield from send_byte(START_BYTE, out, run, done)
+            yield from send_byte(id, out, run, done)
+            yield from send_byte(message, out, run, done)
+            yield from send_byte(END_BYTE, out, run, done)
         else:
             yield
 

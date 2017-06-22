@@ -13,9 +13,9 @@ class YieldFromRangeDesugarer(ast.NodeTransformer):
         return loopvar
 
     def visit_Expr(self, node):
-        if isinstance(node.value, ast.YieldFrom):
+        if isinstance(node.value, ast.YieldFrom) and isinstance(node.value.value, ast.Call) \
+           and node.value.value.func.id == "range":
             node = node.value
-            assert isinstance(node.value, ast.Call) and node.value.func.id == "range"
             width = node.value.args[-1].n.bit_length()
             loopvar = self.gen_loopvar(width)
             return ast.For(ast.Name(loopvar, ast.Load()),

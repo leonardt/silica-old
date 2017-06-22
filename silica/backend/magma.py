@@ -102,10 +102,10 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals):
     if DEBUG_STATE:
         tree.args.args.append(ast.arg("state_out", ast.parse("Out(Array({}, Bit))".format(num_states)).body[0].value))
     tree = specialize_compares_with_increments(tree)
-    if int(os.environ.get("DEBUG_SILICA", "0")) >= 1:
+    if int(os.environ.get("SILICA_DEBUG", "0")) >= 1:
         print(astor.to_source(tree))
     source, name = process_circuit_ast(tree)
-    if int(os.environ.get("DEBUG_SILICA", "0")) >= 2:
+    if int(os.environ.get("SILICA_DEBUG", "0")) >= 2:
         for i, line in enumerate(source.splitlines()):
             print("{} {}".format(i + 1, line))
     exec(source, func_globals, func_locals)
