@@ -1,3 +1,6 @@
+"""
+Silica's Control Flow Graph (CFG)
+"""
 import tempfile
 from copy import deepcopy
 
@@ -60,6 +63,14 @@ def add_false_edge(source, sink):
 
 
 class ControlFlowGraph:
+    """
+    Params:
+        * ``tree`` - an instance of ``ast.FunctionDef``
+
+    Fields:
+        * ``self.curr_block`` - the current block used by the construction
+          algorithm
+    """
     def __init__(self, tree):
         self.blocks = []
         self.curr_block = None
@@ -127,34 +138,42 @@ class ControlFlowGraph:
                 paths.extend([block] + path for path in self.find_paths(block.outgoing_edge[0]))
         return paths
 
-
     def bypass_conds(self):
-        for block in self.blocks:
-            if isinstance(block, BasicBlock) and \
-               isinstance(block.outgoing_edge[0], Branch):
-                constants = collect_constant_assigns(block.statements)
-                branch = block.outgoing_edge[0]
-                cond = deepcopy(branch.cond)
-                cond = specialize_constants(cond, constants)
-                try:
-                    if eval(astor.to_source(cond)):
-                        # FIXME: Interface violation, need a remove method from blocks
-                        block.outgoing_edges = {(branch.true_edge, "")}
-                    else:
-                        block.outgoing_edges = {(branch.false_edge, "")}
-                except NameError:
-                    pass
+        """
+        Bypass any conditions that evaluate to ``True``.
+        Initially used for the ``if True:`` branch node emitted by
+        the top-level ``while True:`` found in FSM definitions.
+        """
+        for block in self.get_basic_blocks_followed_by_branches():
+            constants = collect_constant_assigns(block.statements)
+            branch = block.outgoing_edge[0]
+            cond = deepcopy(branch.cond)
+            cond = specialize_constants(cond, constants)
+            try:
+                if eval(astor.to_source(cond)):
+                    # FIXME: Interface violation, need a remove method from blocks
+                    block.outgoing_edges = {(branch.true_edge, "")}
+                else:
+                    block.outgoing_edges = {(branch.false_edge, "")}
+            except NameError:
+                pass
 
 
     def gen_new_block(self):
+        """
+        Instantiates a new ``BasicBlock``, appends it to ``self.blocks``, and
+        returns it.
+        """
         block = BasicBlock()
         self.blocks.append(block)
         return block
 
     def add_new_block(self):
         """
-        Generate a new BasicBlock in the control flow graph and add an edge
-        from the current block to this new block
+        Generate a new ``BasicBlock`` via ``self.gen_new_block`` in the CFG and
+        add an edge from the ``self.curr_block`` to this new block.
+
+        Sets ``self.curr_block`` to this new ``Basicblock``
         """
         old_block = self.curr_block
         self.curr_block = self.gen_new_block()
@@ -162,9 +181,11 @@ class ControlFlowGraph:
 
     def add_new_yield(self):
         """
-        Adds a new Yield block and edge from the current block to the new Yield
-        block. Then generates a new BasicBlock and adds an edge from the Yield
-        block to the new BasicBlock
+        Adds a new ``Yield`` block to the CFG and connects ``self.curr_block``
+        to it.  
+
+        Then adds a new ``BasicBlock`` to the CFG via ``add_new_block`` and
+        adds an edge from the new ``Yield`` block to this new ``BasicBlock``.
         """
         old_block = self.curr_block
         self.curr_block = Yield()
@@ -176,18 +197,20 @@ class ControlFlowGraph:
 
         self.add_new_block()
 
-    def add_new_branch(self, test):
+    def add_new_branch(self, cond):
         """
-        Adds a new branch node to the CFG (and connects the current block to
-        it)
-        Generates a new basic block corresponding to the True edge of
-        the branch (sets self.curr_block to this True block). 
-        Returns the branch block so that the calling code can later on add a
+        Adds a new ``Branch`` node with the condition ``cond`` to the CFG and
+        connects the current block to it
+
+        Generates a new ``BasicBlock`` corresponding to the True edge of the
+        branch and sets ``self.curr_block`` to this new block. 
+
+        Returns the new Branch node so that the calling code can later on add a
         false edge if necessary
         """
         old_block = self.curr_block
         # First we create an explicit branch node
-        self.curr_block = Branch(test)
+        self.curr_block = Branch(cond)
         self.blocks.append(self.curr_block)
         add_edge(old_block, self.curr_block)
         branch = self.curr_block
@@ -321,6 +344,12 @@ class ControlFlowGraph:
         dot.render(file_name, view=True)
         # print(file_name)
         # exit()
+
+    def get_basic_blocks_followed_by_branches(self):
+        is_basicblock_followed_by_branch = \
+            lambda block : isinstance(block, BasicBlock) and \
+                           isinstance(block.outgoing_edge[0], Branch)
+        return filter(is_basicblock_followed_by_branch, self.blocks)
 
 def render_paths_between_yields(paths):  # pragma: no cover
     """
@@ -457,3 +486,4 @@ def append_state_info(paths, outputs, inputs):
                         seen.add(target.id)
                     state.statements.append(statement)
     return paths, state_vars
+

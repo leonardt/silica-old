@@ -1,4 +1,6 @@
-
+"""
+Class definitions for nodes in the CFG
+"""
 
 class Block:
     def __init__(self):
@@ -44,8 +46,10 @@ class Branch(Block):
     def add_true_edge(self, sink):
         self.true_edge = sink
 
+
 class Yield(Block):
     pass
+
 
 class State:
     def __init__(self):
