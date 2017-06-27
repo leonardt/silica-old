@@ -6,4 +6,4 @@
 silica.egg-info
 .cache
 __pycache__
-api-docs/_build
+doc/_build

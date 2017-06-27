@@ -6,4 +6,4 @@
 Silica is a language embedded in Python for constructing finite state machines
 in digital hardware.
 
-[Setup Instructions](./docs/setup.md)
+[Installation and Developer Setup Instructions](./doc/install.rst)
