@@ -3,8 +3,8 @@
 [![codecov](https://codecov.io/gh/leonardt/silica/branch/master/graph/badge.svg)](https://codecov.io/gh/leonardt/silica)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
-Silica is a language embedded in Python that uses coroutines to describe
-hardware finite state machines.
+Silica is a language embedded in Python for constructing finite state machines
+in digital hardware.
 
 Requires Python 3.5+
 # Setup
@@ -33,16 +33,4 @@ pip install -e .
 Run the test suite
 ```shell
 py.test --cov=silica --cov-report term-missing test
-```
-
-# Syntax
-Extends [mantle](https://github.com/phanrahan/mantle) syntax with
-```
-S ::= ...
-    | if ( E ) { S* } else { S* }
-    | if ( E ) { S* }
-    | while ( E ) { S* }
-    | for ( Id in range(Num) { S* }  # TODO: Should we support more than ranges?
-    | yield
-    | yield from Id
 ```
