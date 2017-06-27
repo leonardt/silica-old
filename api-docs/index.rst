@@ -6,9 +6,13 @@
 Welcome to silica's documentation!
 ==================================
 
+* :doc:`Installation <install>`
+
+Module documentation
+====================
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    silica
 
