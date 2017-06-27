@@ -8,4 +8,8 @@ from uart import BAUD_RATE, message
 # /dev/ttyUSB1
 with serial.Serial(sys.argv[1], BAUD_RATE, timeout=1) as ser:
     while True:
-        print(ser.read(len(message) * 5).decode(), end="")
+        try:
+            print(ser.read(len(message) * 5).decode(), end="")
+        except UnicodeDecodeError as e:
+            print("Experienced {}".format(str(e)))
+            print("Possible framing issue, continueing")
