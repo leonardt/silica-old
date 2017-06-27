@@ -9,6 +9,7 @@ in digital hardware.
 [Installation and Developer Setup](./doc/install.rst)
 
 ## Building the Documentation
+Requires [Sphinx](http://www.sphinx-doc.org/en/stable/) `pip install sphinx`
 ```shell
 $ cd doc
 $ make html
