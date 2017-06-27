@@ -1,10 +1,10 @@
 .. install:
 
-silica Installation
+Installing silica
 ===================
 
-Dependencies
-------------
+External Dependencies
+---------------------
 * | Python 3
   | Recommended lightweight, portable installation method is with 
     `miniconda <https://conda.io/miniconda.html>`_.
