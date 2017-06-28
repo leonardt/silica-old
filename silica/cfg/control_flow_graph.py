@@ -1,5 +1,7 @@
 """
 Silica's Control Flow Graph (CFG)
+
+TODO: We need an explicit HeadBlock object?
 """
 import tempfile
 from copy import deepcopy
