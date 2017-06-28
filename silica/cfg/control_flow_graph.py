@@ -410,30 +410,40 @@ def collect_constant_assigns(statements):
     return constant_assigns
 
 
+def is_assign_to_name(statement):
+    return isinstance(statement, ast.Assign) and \
+           len(statement.targets) == 1 and \
+           isinstance(statement.targets[0], ast.Name)
+
+
 def promote_live_variables(paths):
+    """
+    Currently silica has blocking assingment semantics. To encode this in the
+    CFG, for each path between yields we store the value of writes to a
+    variable and promote any subsequents reads of that variable to the written
+    value (rather than the value during the previous clock cycle).
+    """
     for path in paths:
-        symbol_table = {}
+        symbol_table = {}  # We build a new symbol table for each path
         for block in path:
             if isinstance(block, BasicBlock):
                 new_statements = []
                 for statement in block.statements:
+                    # Replace any symbols currently in the symbol table
                     statement = replace_symbols(statement, symbol_table, ctx=ast.Load)
+                    # Fold constants
                     statement = constant_fold(statement)
-                    if isinstance(statement, ast.Assign) and \
-                       len(statement.targets) == 1 and \
-                       isinstance(statement.targets[0], ast.Name):
+                    # Update symbol table if the statement is an assign
+                    if is_assign_to_name(statement):
                         symbol_table[statement.targets[0].id] = statement.value
                     new_statements.append(statement)
                 block.statements = new_statements
             elif isinstance(block, Branch):
+                # For branches we just promote in the condition
                 block.cond = replace_symbols(block.cond, symbol_table, ctx=ast.Load)
                 block.cond = constant_fold(block.cond)
     return paths
 
-def is_shift_expr(node):
-    return isinstance(node, ast.Expr) and \
-           isinstance(node.value, ast.BinOp) and \
-           isinstance(node.value.op, ast.LShift)
 
 def append_state_info(paths, outputs, inputs):
     for path in paths:
@@ -470,20 +480,8 @@ def append_state_info(paths, outputs, inputs):
                     state_vars.update(names)
     for path in paths:
         state = path[-1]
-        seen = {"yield_state"}
         for block in path[:-1]:
             if isinstance(block, BasicBlock):
-                for statement in block.statements:
-                    if isinstance(statement, ast.Assign):
-                        target = statement.targets[0]
-                    elif isinstance(statement, ast.AugAssign):
-                        target = statement.target
-                    elif is_shift_expr(statement):
-                        target = statement.value.left
-                    else:
-                        raise NotImplementedError(ast.dump(statement))
-                    if isinstance(target, ast.Name):
-                        seen.add(target.id)
-                    state.statements.append(statement)
+                state.statements.extend(block.statements)
     return paths, state_vars
 
