@@ -82,15 +82,13 @@ class ControlFlowGraph:
         self.build(tree)
         self.bypass_conds()
         try:
-            paths = self.collect_paths_between_yields()
+            self.paths = self.collect_paths_between_yields()
         except RecursionError as error:
             # Most likely infinite loop in CFG, TODO: should catch this with an analysis phase
             self.render()
             raise error
-        paths = promote_live_variables(paths)
-        paths, state_vars = append_state_info(paths, outputs, inputs)
-        self.paths = paths
-        self.state_vars = state_vars
+        self.paths = promote_live_variables(self.paths)
+        self.states, self.state_vars = build_state_info(self.paths, outputs, inputs)
 
         # render_paths_between_yields(self.paths)
         # exit()
@@ -445,7 +443,9 @@ def promote_live_variables(paths):
     return paths
 
 
-def append_state_info(paths, outputs, inputs):
+def build_state_info(paths, outputs, inputs):
+    states = []
+    state_vars = {"yield_state"}
     for path in paths:
         state = State()
         if isinstance(path[0], HeadBlock):
@@ -457,31 +457,24 @@ def append_state_info(paths, outputs, inputs):
             [ast.Eq()],
             [ast.Num(yield_id)]
         )
+        state.statements.append(ast.Assign(
+            [ast.Name("yield_state", ast.Store())],
+            ast.Num(path[-1].yield_id)
+        ))
         for i in range(1, len(path)):
             block = path[i]
             if isinstance(block, Branch):
                 cond = block.cond
                 if path[i + 1] is block.false_edge:
                     cond = ast.UnaryOp(ast.Invert(), cond)
+                names = collect_names(cond)
+                for name in names:
+                    if name not in outputs and \
+                       name not in inputs:
+                        state_vars.update(names)
                 state.conds.append(cond)
-        state.statements.append(ast.Assign(
-            [ast.Name("yield_state", ast.Store())],
-            ast.Num(path[-1].yield_id)
-        ))
-        path.append(state)
-    state_vars = {"yield_state"}
-    for path in paths:
-        state = path[-1]
-        for cond in state.conds:
-            names = collect_names(cond)
-            for name in names:
-                if name not in outputs and \
-                   name not in inputs:
-                    state_vars.update(names)
-    for path in paths:
-        state = path[-1]
-        for block in path[:-1]:
-            if isinstance(block, BasicBlock):
+            elif isinstance(block, BasicBlock):
                 state.statements.extend(block.statements)
-    return paths, state_vars
+        states.append(state)
+    return states, state_vars
 

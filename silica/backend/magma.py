@@ -41,7 +41,7 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals):
     local_vars.append(("yield_state", yield_width))
     outputs = ast_utils.get_outputs_from_func(tree)
 
-    num_states = len(cfg.paths)
+    num_states = len(cfg.states)
     state_width = (num_states - 1).bit_length()
     source.add_line("state = Register({}, ce={})".format(num_states, clock_enable))
     DEBUG_STATE = False
@@ -59,8 +59,7 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals):
         replace_symbol_table[var] = ast.Attribute(ast.Name(var + "_reg", ast.Load()), "O", ast.Load())
         source.add_line("{}_next = Or({}, {})".format(var, num_states, width))
         source.add_line("wire({var}_next.O, {var}_reg.I)".format(var=var))
-    for i, path in enumerate(cfg.paths):
-        state_info = path[-1]
+    for i, state_info in enumerate(cfg.states):
         state_info.statements = [replace_symbols(statement, replace_symbol_table, ast.Load) for statement in state_info.statements]
         curr = state_info.yield_state
         for cond in state_info.conds:
@@ -72,7 +71,7 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals):
             curr = replace_symbols(curr, symbol_table, ast.Load)
         source.add_line("state.I[{}] = {}".format(i, astor.to_source(curr).rstrip()))
     for var, width in local_vars + outputs:
-        for i, path in enumerate(cfg.paths):
+        for i, state_info in enumerate(cfg.states):
             source.add_line("{}_{} = And(2, {})".format(var, i, width))
             source.add_line("wire({var}_{i}.O, {var}_next.I{i})".format(var=var, i=i))
             if width > 1:
@@ -80,7 +79,6 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals):
                     source.add_line("wire(state.O[{i}], {var}_{i}.I0[{j}])".format(i=i, var=var, j=j))
             else:
                 source.add_line("wire(state.O[{i}], {var}_{i}.I0)".format(i=i, var=var))
-            state_info = path[-1]
             result = [statement for statement in  state_info.statements if var in collect_names(statement, ast.Store)]
             # assert len(result) <= 1, [astor.to_source(s).rstrip() for s in result]
             if len(result) == 0:

@@ -18,7 +18,7 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals, file
     params.append("input CLKIN")
     source = ""
     source += "module {}({});\n".format(tree.name, ", ".join(params))
-    state_width = (len(cfg.paths) - 1).bit_length()
+    state_width = (len(cfg.states) - 1).bit_length()
     source += "reg [{}:0] yield_state;\n".format(state_width - 1)
     source += "initial begin\n    yield_state = 0;\nend\n"
     for var in sorted(cfg.state_vars):  # Sort for regression tests
@@ -29,9 +29,8 @@ def compile(cfg, local_vars, tree, clock_enable, func_globals, func_locals, file
         source += "always @(posedge CLKIN) if (clock_enable) begin\n"
     else:
         source += "always @(posedge CLKIN) begin\n"
-    for path in cfg.paths:
-        state = path[-1]
-        if path is cfg.paths[0]:
+    for state in cfg.states:
+        if state is cfg.states[0]:  # Is first state hack
             prog = "if "
         else:
             prog = "else if "
