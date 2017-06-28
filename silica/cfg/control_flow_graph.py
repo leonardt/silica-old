@@ -42,7 +42,7 @@ def add_edge(source, sink, label=""):
 
 def add_true_edge(source, sink):
     """
-    Add an edge form source to sink with label="T" and set the `true_edge`
+    Add an edge form source to sink with label="T" and set the ``true_edge``
     attribute on source
     """
     assert isinstance(source, Branch)
@@ -53,7 +53,7 @@ def add_true_edge(source, sink):
 
 def add_false_edge(source, sink):
     """
-    Add an edge from source to sink with label="F" and set the `false_edge`
+    Add an edge from source to sink with label="F" and set the ``false_edge``
     attribute on source
     """
     assert isinstance(source, Branch)
@@ -94,6 +94,10 @@ class ControlFlowGraph:
         # exit()
 
     def build(self, func_def):
+        """
+        Called by ``__init__`` to actually construct the CFG
+        TODO: Should self.local_vars logic be in here?
+        """
         assert isinstance(func_def, ast.FunctionDef)
         self.head_block = HeadBlock()
         self.blocks.append(self.head_block)
@@ -107,13 +111,16 @@ class ControlFlowGraph:
                 self.local_vars.add((statement.targets[0].id, statement.value.args[0].n))
             else:
                 raise NotImplementedError()
-        assert isinstance(func_def.body[-1], ast.While), "FSMs should end with a `while True:`"
+        assert isinstance(func_def.body[-1], ast.While), "FSMs should end with a ``while True:``"
         self.process_stmt(func_def.body[-1])
         self.consolidate_empty_blocks()
         self.remove_if_trues()
 
 
     def find_paths(self, block):
+        """
+        Given a block, recursively build paths to yields
+        """
         if isinstance(block, Yield):
             return [[deepcopy(block)]]
         elif isinstance(block, BasicBlock):
@@ -130,6 +137,11 @@ class ControlFlowGraph:
             raise NotImplementedError(type(block))
 
     def collect_paths_between_yields(self):
+        """
+        For each block, if it's a Yield (or HeadBlock): TODO: HeadBlock is confusing
+            Add a path for each path returned from calling ``self.find_paths`` on
+            the outgoing edge
+        """
         paths = []
         for block in self.blocks:
             if isinstance(block, (Yield, HeadBlock)):
@@ -263,7 +275,7 @@ class ControlFlowGraph:
 
     def remove_block(self, block):
         """
-        Removes `block` from the control flow graph and collapses incoming
+        Removes ``block`` from the control flow graph and collapses incoming
         edges to outgoing edges.
         """
         for source, source_label in block.incoming_edges:
@@ -344,6 +356,10 @@ class ControlFlowGraph:
         # exit()
 
     def get_basic_blocks_followed_by_branches(self):
+        """
+        Returns all the ``BasicBlock`` s in the CFG that are followed by a
+        ``Branch``
+        """
         is_basicblock_followed_by_branch = \
             lambda block : isinstance(block, BasicBlock) and \
                            isinstance(block.outgoing_edge[0], Branch)
@@ -395,6 +411,12 @@ def render_paths_between_yields(paths):  # pragma: no cover
     dot.render(file_name, view=True)
 
 def collect_constant_assigns(statements):
+    """
+    Collect statements that assign a variable ``var`` to a constant value
+    ``c``.
+
+    Returns a dict ``{var : c for each constant assign in statements}``
+    """
     constant_assigns = {}
     for stmt in statements:
         if isinstance(stmt, ast.Assign):
@@ -409,6 +431,7 @@ def collect_constant_assigns(statements):
 
 
 def is_assign_to_name(statement):
+    """Returns true if statement is of the form ``var = ...``"""
     return isinstance(statement, ast.Assign) and \
            len(statement.targets) == 1 and \
            isinstance(statement.targets[0], ast.Name)
@@ -444,6 +467,13 @@ def promote_live_variables(paths):
 
 
 def build_state_info(paths, outputs, inputs):
+    """
+    Constructs a ``State`` object for each path in paths.
+
+    Returns a 2 element tuple of:
+        list of State objects
+        set of state variable names
+    """
     states = []
     state_vars = {"yield_state"}
     for path in paths:
