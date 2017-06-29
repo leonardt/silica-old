@@ -1,6 +1,7 @@
 """
 Class definitions for nodes in the CFG
 """
+import ast
 
 class Block:
     def __init__(self):
@@ -52,7 +53,17 @@ class Yield(Block):
 
 
 class State:
-    def __init__(self):
-        self.yield_state = None
+    def __init__(self, start_yield_id, end_yield_id):
+        self.start_yield_id = start_yield_id
+        self.yield_state = ast.Compare(
+            ast.Name("yield_state", ast.Load()),
+            [ast.Eq()],
+            [ast.Num(start_yield_id)]
+        )
+        self.end_yield_id = end_yield_id
         self.conds = []
         self.statements = []
+        self.statements.append(ast.Assign(
+            [ast.Name("yield_state", ast.Store())],
+            ast.Num(end_yield_id)
+        ))

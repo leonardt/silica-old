@@ -92,6 +92,7 @@ class ControlFlowGraph:
         self.paths = promote_live_variables(self.paths)
         self.states, self.state_vars = build_state_info(self.paths, outputs, inputs)
 
+        # render_fsm(self.states)
         # render_paths_between_yields(self.paths)
         # exit()
 
@@ -374,6 +375,24 @@ class ControlFlowGraph:
                            isinstance(block.outgoing_edge[0], Branch)
         return filter(is_basicblock_followed_by_branch, self.blocks)
 
+def render_fsm(states):
+    from graphviz import Digraph
+    dot = Digraph(name="top")
+    ids = set(state.start_yield_id for state in states)
+    for _id in ids:
+        dot.node(str(_id), "state {}".format(_id))
+    for state in states:
+        label = "Inputs: "
+        label += ", ".join(astor.to_source(cond).rstrip() for cond in state.conds)
+        label += "\n"
+        label += "Outputs: "
+        # Skip yield state assignment for now
+        label += ", ".join(astor.to_source(statement).rstrip() for statement in state.statements[1:])
+        dot.edge(str(state.start_yield_id), str(state.end_yield_id), label)
+    file_name = tempfile.mktemp("gv")
+    dot.render(file_name, view=True)
+
+
 def render_paths_between_yields(paths):  # pragma: no cover
     """
     Render all the paths between yields using graphviz
@@ -486,20 +505,12 @@ def build_state_info(paths, outputs, inputs):
     states = []
     state_vars = {"yield_state"}
     for path in paths:
-        state = State()
         if isinstance(path[0], HeadBlock):
-            yield_id = 0
+            start_yield_id = 0
         else:
-            yield_id = path[0].yield_id
-        state.yield_state = ast.Compare(
-            ast.Name("yield_state", ast.Load()),
-            [ast.Eq()],
-            [ast.Num(yield_id)]
-        )
-        state.statements.append(ast.Assign(
-            [ast.Name("yield_state", ast.Store())],
-            ast.Num(path[-1].yield_id)
-        ))
+            start_yield_id = path[0].yield_id
+        end_yield_id = path[-1].yield_id
+        state = State(start_yield_id, end_yield_id)
         for i in range(1, len(path)):
             block = path[i]
             if isinstance(block, Branch):
