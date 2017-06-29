@@ -234,6 +234,13 @@ class ControlFlowGraph:
         return branch
 
     def process_stmt(self, stmt):
+        """
+        Adds ``stmt`` to the CFG
+        If stmt is a:
+            * While or If - Adds a branch node, and basic blocks for the true and false edges
+            * Yield - Adds a yield node
+        Otherwise appends stmt to the current basic block
+        """
         if isinstance(stmt, (ast.While, ast.If)):
             # Emit new blocks for the branching instruction
             branch = self.add_new_branch(stmt.test)
