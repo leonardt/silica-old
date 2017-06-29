@@ -1,3 +1,0 @@
-set_io CLKIN 21
-set_io TX 8
-set_io RX 9
