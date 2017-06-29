@@ -92,8 +92,9 @@ class ControlFlowGraph:
         self.paths = promote_live_variables(self.paths)
         self.states, self.state_vars = build_state_info(self.paths, outputs, inputs)
 
-        # render_fsm(self.states)
+        # self.render()
         # render_paths_between_yields(self.paths)
+        # render_fsm(self.states)
         # exit()
 
     def build(self, func_def):
