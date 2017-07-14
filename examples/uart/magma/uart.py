@@ -6,21 +6,13 @@ from silica import fsm
 BAUD_RATE  = 115200
 CLOCK_RATE = int(12e6)  # 12 mhz
 
-
-def REGs(n):
-    return [Register(8) for i in range(n)]
-
-def MUXs(n):
-    return [Mux(2,8) for i in range(n)]
-
-# TODO: Use the ROM definition from class, should we merge this into mantle?
-def _ROM(logn, init, A):
-    n = 1 << logn
+def ROMNx8(init, A):
+    n = len(init)
+    logn = n.bit_length() - 1
     assert len(A) == logn
-    assert len(init) == n
 
-    muxs = MUXs(n-1)
-    for i in range(n//2):
+    muxs = [Mux(2, 8) for i in range(n - 1)]
+    for i in range(n // 2):
         muxs[i](init[2*i], init[2*i+1], A[0])
 
     k = 0
@@ -72,7 +64,7 @@ wire(counter.CE, advance.COUT)
 
 message = "Hello, world! \r\n"
 message_bytes = [int2seq(ord(char), 8) for char in message]
-rom = _ROM(4, message_bytes, counter.O)
+rom = ROMNx8(message_bytes, counter.O)
 
 wire(uart.data, rom.O)
 wire(uart.valid, 1)
