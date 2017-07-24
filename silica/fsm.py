@@ -1,21 +1,14 @@
 import magma
-import copy
 import ast
 import astor
 import inspect
-import textwrap
 from silica.backend import PyFSM
 import silica.backend
-import silica.backend.verilog as verilog
-from silica.cfg import ControlFlowGraph, Yield, BasicBlock, Branch
+from silica.cfg import ControlFlowGraph
 import silica.ast_utils as ast_utils
 from silica.transformations import desugar_for_loops, desugar_yield_from_range, \
-    specialize_constants, replace_symbols, constant_fold, inline_yield_from_functions
-from silica.visitors import collect_names
-from silica.code_gen import Source
-import silica.ast_utils as ast_utils
+    specialize_constants, constant_fold, inline_yield_from_functions
 import os
-from copy import deepcopy
 
 
 def round_to_next_power_of_two(x):
@@ -51,7 +44,6 @@ def FSM(f, func_locals, func_globals, backend, clock_enable=False, render_cfg=Fa
         file_dir = os.path.dirname(_file)
         # `ast_utils.get_ast` returns a module so grab first statement in body
         tree = ast_utils.get_ast(f).body[0]  
-        func_name = tree.name
         validate_arguments(tree)
 
         local_vars = set()
