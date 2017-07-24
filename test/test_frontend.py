@@ -1,4 +1,5 @@
 from magma import *
+from mantle import *
 from silica import fsm
 
 
@@ -10,7 +11,8 @@ def test_good_arguments():
                 a = b
                 yield
     except Exception as e:
-        assert False, "This should not throw an exception"
+        assert False, "This should not throw an exception," \
+                      " got \"{}: {}\"".format(e.__class__.__name__, e)
 
 
 def test_bad_arguments():
