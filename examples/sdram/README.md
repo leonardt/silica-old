@@ -72,7 +72,7 @@ To monitor a port at the correct rate, use the command (swap out `/dev/tty.usbse
 ```
 screen /dev/tty.usbserial-1431B 9600
 ```
-Use `ctrl-a,ctrl-k` to kill the screen session (it will prompt for `y/n` confirmation). If you accidentally detach from the screen session (e.g. by hitting `ctrl-d`, you can reattach with the command `screen -r`)
+Use `ctrl-a` followed by `ctrl-k` to kill the screen session (it will prompt for `y/n` confirmation). If you accidentally detach from the screen session (e.g. by hitting `ctrl-d`), you can reattach with the command `screen -r`.
 
 If everything has gone correctly, one of the ports should be printing out messages like:
 ```
