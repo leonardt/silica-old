@@ -1,3 +1,6 @@
+![Papilio Pro](http://papilio.cc/uploads/Papilio/ppro.jpg)
+This example implements an SDRAM controller for the [Papilio Pro](http://papilio.cc/index.php?n=Papilio.PapilioPro) based on [Mike Field's Simple SDRAM Controller](http://hamsterworks.co.nz/mediawiki/index.php/Simple_SDRAM_Controller).
+
 # Setup
 ## macOS
 Tested on Macbook Pro (13-inch, 2017, Four Thunderbolt 3 Ports) with macOS Sierra (10.12.6)
