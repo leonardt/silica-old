@@ -47,6 +47,7 @@ USB transactions: Write 177 read 9 retries 5
 ```
 
 More information about the QuickStart file can be found [here](http://papilio.cc/index.php?n=Papilio.P1QuickstartSketch).
+
 It sends the ASCII table at 9600 8N1 over the serial port in a continuous loop, so we will monitor the port to verify that the bit file was loaded properly.
 
 First, we must reload the Apple FTDI driver:
