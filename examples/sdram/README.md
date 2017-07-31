@@ -25,8 +25,8 @@ Could not access USB device 0403:6010. If this is linux then use sudo.
 ```
 
 ### Verifying your Setup
-1. Download and install the Papilio Loader GUI from [this link](http://forum.gadgetfactory.net/index.php?/files/file/10-papilio-loader-gui/) (choose the Mac.zip)
-2. Download the Papilio Quickstart Sketch bit file for the Papilio Pro LX9 from [this link](http://papilio.cc/sketches/Quickstart-Papilio_Pro_LX9-v1.5.bit).
+1. Download and install the [Papilio Loader GUI](http://forum.gadgetfactory.net/index.php?/files/file/10-papilio-loader-gui/) (choose the Mac.zip)
+2. Download the [Papilio Quickstart Sketch bit file for the Papilio Pro LX9](http://papilio.cc/sketches/Quickstart-Papilio_Pro_LX9-v1.5.bit).
 3. Run the Loader GUI (**NOTE**: Make sure you've unloaded the Apple FTDI driver as noted above).
 4. In the `Target .bit file` field, select the `Quickstart-Papilio_Pro_LX9-v1.5.bit` file you just downloaded.
 5. Click `Run`
