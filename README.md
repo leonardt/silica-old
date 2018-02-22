@@ -3,6 +3,8 @@
 [![codecov](https://codecov.io/gh/leonardt/silica/branch/master/graph/badge.svg)](https://codecov.io/gh/leonardt/silica)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
+**NOT SUPPORTED: DEVELOPMENT HAS MOVED TO https://github.com/leonardt/silica**
+
 Silica is a language embedded in Python for constructing finite state machines
 in digital hardware.
 
